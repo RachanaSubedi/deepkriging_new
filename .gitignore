@@ -32,3 +32,4 @@ outputs/predictions/
 
 # Jupyter
 .ipynb_checkpoints/
+geeservice_account_key.json
