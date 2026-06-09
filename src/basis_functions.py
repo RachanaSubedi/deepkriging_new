@@ -144,21 +144,15 @@ def remove_zero_columns(Phi_all, meta,
 # ── STEP 5: NORMALISE ────────────────────────────────────────
 def normalise_basis(Phi_stations, Phi_nsrdb, Phi_pvs):
     """
-    MinMax scaling fit on stations only.
-    Same scaler applied to NSRDB and PV locations.
-    Returns scaled matrices + (col_min, col_range) for inference.
+    Raw Wendland values are already in [0, 1] by construction
+    (=1 at knot center, →0 beyond support). No scaling needed.
+    Per-column min-max fit on 4 stations divides PV values by tiny
+    station-derived ranges, exploding them to huge numbers — and
+    destroys the smooth RBF spatial decay. Pass through unchanged.
     """
-    col_min   = Phi_stations.min(axis=0)
-    col_range = Phi_stations.max(axis=0) - col_min
-    col_range[col_range == 0] = 1.0
-
-    def scale(Phi):
-        return (Phi - col_min) / col_range
-
-    return (scale(Phi_stations),
-            scale(Phi_nsrdb),
-            scale(Phi_pvs),
-            col_min, col_range)
+    col_min   = np.zeros(Phi_stations.shape[1], dtype=np.float32)
+    col_range = np.ones(Phi_stations.shape[1],  dtype=np.float32)
+    return Phi_stations, Phi_nsrdb, Phi_pvs, col_min, col_range
 
 
 # ── STEP 6: UNIQUENESS CHECK ─────────────────────────────────
