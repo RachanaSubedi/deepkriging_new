@@ -2,7 +2,7 @@
 src/basis_functions.py
 
 Builds multi-resolution Wendland RBF basis matrix for all locations.
-Run directly:  python src/basis_functions.py
+
 """
 
 import numpy as np

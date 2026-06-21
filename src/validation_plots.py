@@ -50,7 +50,7 @@ def load_fold_predictions():
 
 # ── FIGURE 1: SCATTER PLOTS ───────────────────────────────────
 def plot_scatter(preds, results):
-    fig, axes = plt.subplots(1, 4, figsize=(18, 4.6))
+    fig, axes = plt.subplots(1, 4, figsize=(18, 6))
     fig.suptitle('LOSO Validation: Predicted vs Measured GHI '
                  '(held-out station)', fontsize=14, fontweight='bold')
 

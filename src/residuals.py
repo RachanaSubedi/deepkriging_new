@@ -128,7 +128,7 @@ if __name__ == "__main__":
     # ── 2. Load background fields ────────────────────────────
     print("\n[2/4] Loading background fields...")
     bg_csi      = pd.read_parquet(BG_DIR / "bg_csi_stations.parquet")
-    bg_clearsky = pd.read_parquet(BG_DIR / "bg_clearsky_stations.parquet")
+    bg_clearsky = pd.read_parquet(BG_DIR / "clearsky_pvlib_stations.parquet")
     print(f"  bg_csi      : {bg_csi.shape}   "
           f"range [{bg_csi.values.min():.3f}, {bg_csi.values.max():.3f}]")
     print(f"  bg_clearsky : {bg_clearsky.shape}   "
@@ -148,7 +148,7 @@ if __name__ == "__main__":
 
     RESID_DIR.mkdir(parents=True, exist_ok=True)
     csi_df.to_parquet(RESID_DIR   / "csi_stations.parquet")
-    resid_df.to_parquet(RESID_DIR / "residuals_stations.parquet")
+    #resid_df.to_parquet(RESID_DIR / "residuals_stations.parquet")
 
     # ── Sanity check ─────────────────────────────────────────
     print("\n── Sanity Check ────────────────────────────────────")

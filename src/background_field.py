@@ -141,8 +141,12 @@ def load_nsrdb(nsrdb_dir):
 # ── STEP 4: COMPUTE CSI ───────────────────────────────────────
 def compute_csi(ghi, ghi_clear):
     csi = np.zeros_like(ghi, dtype=np.float32)
-    day = ghi_clear >= CLEARSKY_NIGHT_W_M2
-    csi[day] = ghi[day] / ghi_clear[day]
+    # Use a higher floor than the nighttime threshold — CSI is numerically
+    # unstable when clearsky is near zero (e.g. clearsky=1.7 W/m² right
+    # after sunrise), producing erratic CSI values that destabilize the
+    # model's lag features (bg_csi_diff jumps wildly at the day boundary).
+    stable = ghi_clear >= 20.0
+    csi[stable] = ghi[stable] / ghi_clear[stable]
     np.clip(csi, 0.0, CSI_CLIP_MAX, out=csi)
     return csi
 

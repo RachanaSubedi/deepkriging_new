@@ -4,7 +4,7 @@ src/training_matrix.py
 Assembles the complete training matrix for DeepKriging:
 
     X : (N, 426)   411 Wendland RBF basis + 15 covariates
-    y : (N,)       CSI residual at station location
+    y : (N,)       measured CSI at station location
     fold_ids : (N,) station index 0-3 for LOSO CV
 
 Only daytime rows (bg_clearsky >= 10 W/m²) included.
@@ -97,8 +97,12 @@ def build_covariates(timestamps, bg_csi_s, bg_clearsky_s,
     cs_frac   = (bg_clearsky_s / daily_max).astype(np.float32)
 
     # Day-of-year sine
-    doy     = timestamps.day_of_year.values
+    doy = timestamps.day_of_year.values
     doy_sin = np.sin(2 * np.pi * doy / 365).astype(np.float32)
+    doy_cos = np.cos(2 * np.pi * doy / 365).astype(np.float32)
+    hour = timestamps.hour.values + timestamps.minute.values / 60.0
+    hour_sin = np.sin(2 * np.pi * hour / 24).astype(np.float32)
+    hour_cos = np.cos(2 * np.pi * hour / 24).astype(np.float32)
 
     # Elevation — broadcast scalar to (T,)
     elev_arr = np.full(len(timestamps), elev_s, dtype=np.float32)
@@ -119,6 +123,10 @@ def build_covariates(timestamps, bg_csi_s, bg_clearsky_s,
         norm(met_s['cloud_type'],  *MET_NORM['cloud_type']),     # 13
         norm(elev_arr,             *MET_NORM['elevation']),      # 14
         doy_sin,                                                 # 15
+        doy_cos,                                                 # 16
+        hour_sin,
+        hour_cos,
+
     ]).astype(np.float32)
 
     names = [
@@ -126,7 +134,7 @@ def build_covariates(timestamps, bg_csi_s, bg_clearsky_s,
         'clearsky_frac', 'cos_zenith',
         'bt_norm', 'bt_lag30', 'bt_diff',
         'temperature', 'rh', 'pressure', 'pw',
-        'cloud_type', 'elevation', 'doy_sin',
+        'cloud_type', 'elevation', 'doy_sin', 'doy_cos', 'doy_sin', 'doy_cos', 'hour_sin', 'hour_cos',
     ]
     return cov, names
 
@@ -145,8 +153,8 @@ if __name__ == "__main__":
 
     Phi_st    = np.load(BASIS_DIR / "Phi_stations_scaled.npy")   # (4, K)
     bg_csi    = pd.read_parquet(BG_DIR / "bg_csi_stations.parquet")
-    bg_clear  = pd.read_parquet(BG_DIR / "bg_clearsky_stations.parquet")
-    residuals = pd.read_parquet(RESID_DIR / "residuals_stations.parquet")
+    bg_clear  = pd.read_parquet(BG_DIR / "clearsky_pvlib_stations.parquet")
+    csi_meas = pd.read_parquet(RESID_DIR / "csi_stations.parquet")
     c13_feats = pd.read_parquet(C13_FEAT_DIR / "c13_feat_stations.parquet")
 
     # Met variables
@@ -160,7 +168,7 @@ if __name__ == "__main__":
 
     print(f"  Phi_stations : {Phi_st.shape}")
     print(f"  bg_csi       : {bg_csi.shape}")
-    print(f"  residuals    : {residuals.shape}")
+    print(f"  csi_meas     : {csi_meas.shape}")
     print(f"  c13_feats    : {c13_feats.shape}")
     for k in met_keys:
         print(f"  met_{k:12s}: {met_data[k].shape}")
@@ -168,15 +176,15 @@ if __name__ == "__main__":
 
     # ── 2. Align timestamps ───────────────────────────────────
     print("\n[2/4] Aligning timestamps...")
-    common = residuals.index
+    common = csi_meas.index
     for df in [bg_csi, bg_clear, c13_feats] + list(met_data.values()):
         common = common.intersection(df.index)
 
-    bg_csi    = bg_csi.loc[common]
-    bg_clear  = bg_clear.loc[common]
-    residuals = residuals.loc[common]
+    bg_csi = bg_csi.loc[common]
+    bg_clear = bg_clear.loc[common]
+    csi_meas = csi_meas.loc[common]
     c13_feats = c13_feats.loc[common]
-    met_data  = {k: v.loc[common] for k, v in met_data.items()}
+    met_data = {k: v.loc[common] for k, v in met_data.items()}
     print(f"  Common timesteps : {len(common)}")
 
     # ── 3. Build per-station matrices ─────────────────────────
@@ -192,7 +200,7 @@ if __name__ == "__main__":
         T_day    = day_mask.sum()
         ts       = common[day_mask]
 
-        y_s = residuals.loc[ts, s_name].values.astype(np.float32)
+        y_s = csi_meas.loc[ts, s_name].values.astype(np.float32)
 
         # C13 features for this station
         if s_name in c13_feats.columns.get_level_values(0):
@@ -272,7 +280,7 @@ if __name__ == "__main__":
     for i, s in enumerate(station_names):
         lines.append(f"  Fold {i} ({s}) : {(fold_ids==i).sum()}")
     lines += ["", f"y mean={y.mean():.4f}  std={y.std():.4f}  "
-              f"range=[{y.min():.3f}, {y.max():.3f}]"]
+                  f"range=[{y.min():.3f}, {y.max():.3f}]"]
     (TRAIN_DIR / "training_summary.txt").write_text('\n'.join(lines))
 
     print(f"\n── Summary ─────────────────────────────────────────")

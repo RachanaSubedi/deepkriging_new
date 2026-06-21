@@ -63,7 +63,7 @@ GEE_PROJECT    = "rachanaieee9500"
 GEE_DATASET    = "NOAA/GOES/18/MCMIPC"
 
 # ── MODEL ─────────────────────────────────────────────────────
-N_COVARIATES   = 15
+N_COVARIATES   = 18
 HIDDEN_SIZE    = 100
 DROPOUT        = 0.5
 WEIGHT_DECAY   = 1e-4

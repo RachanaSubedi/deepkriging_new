@@ -22,7 +22,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from configs.config import FIG_DIR, STATIONS
 
 # ── PATHS ─────────────────────────────────────────────────────
-PRED_CSV    = Path(__file__).parent.parent / "outputs" / "predictions" / "ghi_pvs.csv"
+PRED_CSV = Path(__file__).parent.parent / "outputs" / "predictions" / "ghi_pvs_corrected.csv"
 PV_CSV      = Path(__file__).parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
 STATION_CSV = (Path(__file__).parent.parent / "data" / "raw" / "stations"
                / "all_stations_GHI_30min_PST_filled.csv")
@@ -43,7 +43,10 @@ lons_map = pv_df.set_index('pv_name')['pv_lon']
 try:
     st = pd.read_csv(STATION_CSV, sep=None, engine='python',
                      encoding='utf-8-sig', index_col=0, parse_dates=True)
-    st.index = pd.to_datetime(st.index, format='ISO8601')
+    st.index = (pd.to_datetime(st.index)
+                .tz_localize('Etc/GMT+8')  # label as PST
+                .tz_convert('America/Los_Angeles')  # convert to PDT
+                .tz_localize(None))  # strip tz → naive PDT
     st.columns = [c.replace('GHI_', '') for c in st.columns]
     have_stations = True
     print("  Station data loaded")
@@ -87,7 +90,7 @@ def spatial_ax(ax, row_series, vmin, vmax, title):
 # ══════════════════════════════════════════════════════════════
 # FIGURE SET 1 — APRIL 30 ANALYSIS
 # ══════════════════════════════════════════════════════════════
-apr30 = ghi_all[ghi_all.index.date == pd.Timestamp('2024-04-30').date()]
+apr30 = ghi_all[ghi_all.index.date == pd.Timestamp('2024-01-15').date()]
 daytime = apr30.dropna(how='all')
 
 print(f"\nApril 30 summary:")
@@ -98,12 +101,13 @@ print(f"  Mean daytime  : {daytime.values[~np.isnan(daytime.values)].mean():.1f}
 # ── Fig 1a: Time series ───────────────────────────────────────
 fig, ax = plt.subplots(figsize=(13, 5))
 
-pv_max = daytime.max(axis=1)
-pv_min = daytime.min(axis=1)
-pv_med = daytime.median(axis=1)
+# Plot all 178 PV predictions as faint individual lines
+for col in pv_names:
+    ax.plot(daytime.index, daytime[col], color='steelblue',
+            lw=0.9, alpha=0.3, zorder=1)
 
-ax.fill_between(daytime.index, pv_min, pv_max,
-                color='steelblue', alpha=0.18, label='PV prediction range (min–max)')
+# Median line on top for reference
+pv_med = daytime.median(axis=1)
 ax.plot(daytime.index, pv_med, color='steelblue', lw=2,
         label='PV median prediction', zorder=3)
 
@@ -113,14 +117,13 @@ for col in pv_names[::10]:   # every 10th PV for legibility
             lw=0.5, alpha=0.5, zorder=1)
 
 if have_stations:
-    apr30_st = st[st.index.date == pd.Timestamp('2024-04-30').date()]
+    apr30_st = st[st.index.date == pd.Timestamp('2024-01-15').date()]
     for s, col in STATION_COLORS.items():
         if s in apr30_st.columns:
             ax.plot(apr30_st.index, apr30_st[s], color=col,
                     lw=2.2, ls='--', label=f'{s} measured', zorder=4)
 
-ax.set_title('April 30, 2024 — Predicted GHI at 178 PV Locations vs Station Measurements\n'
-             'Kennewick/Richland, WA  (IEEE 9500-Node S2 Feeder)',
+ax.set_title('January 15, 2024 - Predicted GHI at 178 PV Locations vs Station Measurements\n',
              fontsize=12, fontweight='bold')
 ax.set_xlabel('Time (PDT)')
 ax.set_ylabel('GHI (W/m²)')

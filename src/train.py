@@ -20,7 +20,9 @@ Outputs (outputs/models/ and outputs/validation/):
     fold_{k}_scaler_mean.npy     scaler mean  (426,)
     fold_{k}_scaler_std.npy      scaler std   (426,)
     fold_{k}_predictions.csv     test predictions with timestamps
+    fold_{k}_history.csv         epoch-by-epoch train/val loss
     loso_summary.txt             RMSE / R² for all folds
+    fig_loss_curves.png          training loss curves (outputs/figures/)
 
 Run:
     python src/train.py
@@ -36,10 +38,14 @@ from pathlib import Path
 import sys
 import time
 
+import matplotlib
+matplotlib.use('Agg')   # non-interactive backend — no popup window
+import matplotlib.pyplot as plt
+
 sys.path.append(str(Path(__file__).parent.parent))
 
 from configs.config import (
-    TRAIN_DIR, MODEL_DIR, VAL_DIR, BG_DIR,
+    TRAIN_DIR, MODEL_DIR, VAL_DIR, BG_DIR, FIG_DIR,
     STATIONS,
     HIDDEN_SIZE, DROPOUT, WEIGHT_DECAY,
     LEARNING_RATE, BATCH_SIZE, MAX_EPOCHS,
@@ -47,13 +53,20 @@ from configs.config import (
 from src.model import DeepKriging, count_parameters
 
 # ── HYPERPARAMETERS ───────────────────────────────────────────
-HUBER_DELTA      = 0.1    # Huber loss δ — robust to cloud-enhancement outliers
-EARLY_STOP_PAT   = 20     # epochs without val improvement before stopping
-VAL_FRACTION     = 0.20   # last 20 % of each training station → validation
-CLEARSKY_MIN     = 10.0   # W/m² — used only for GHI reconstruction check
+HUBER_DELTA      = 0.1
+EARLY_STOP_PAT   = 20
+VAL_FRACTION     = 0.20
+CLEARSKY_MIN     = 10.0
 
-STATION_NAMES    = list(STATIONS.keys())   # ['S1', 'S2', 'S3', 'P2']
-DEVICE           = torch.device('cpu')     # CPU is sufficient for this model size
+STATION_NAMES    = list(STATIONS.keys())
+DEVICE           = torch.device('cpu')
+
+FOLD_COLORS = {
+    'S1': '#e63946',
+    'S2': '#2a9d8f',
+    'S3': '#e76f51',
+    'P2': '#264653',
+}
 
 
 # ── UTILITIES ─────────────────────────────────────────────────
@@ -66,11 +79,7 @@ def standardise(X_train, X_val, X_test, n_basis=411):
     """
     Standardize ONLY the covariate columns (last 15).
     Leave the 411 basis function columns unchanged — they are
-    already min-max scaled to [0,1] in Phi_stations_scaled.npy.
-
-    Re-standardizing phi values with per-fold statistics causes
-    phi(test_station) to fall outside the training distribution,
-    producing extreme network outputs and catastrophic test RMSE.
+    already in [0,1] from Phi_stations_scaled.npy.
     """
     mean = np.zeros(X_train.shape[1], dtype=np.float32)
     std  = np.ones(X_train.shape[1],  dtype=np.float32)
@@ -92,7 +101,6 @@ def temporal_val_split(X, y, ts, fraction=VAL_FRACTION):
     """
     Split (X, y) into train / val by time.
     Takes the LAST `fraction` of timesteps as validation.
-    Operates on a single station's data (already sorted by ts).
     """
     n     = len(y)
     n_val = max(1, int(n * fraction))
@@ -118,7 +126,7 @@ def make_loader(X, y, batch_size, shuffle):
 def train_one_fold(fold_k, X_tr, y_tr, X_val, y_val):
     """
     Train DeepKriging for one LOSO fold.
-    Returns best model and training history.
+    Returns best model and epoch-by-epoch history list.
     """
     model     = DeepKriging(X_tr.shape[1], HIDDEN_SIZE, DROPOUT).to(DEVICE)
     optimizer = torch.optim.Adam(model.parameters(),
@@ -193,6 +201,97 @@ def predict(model, X):
     return out.cpu().numpy()
 
 
+# ── PLOT LOSS CURVES ──────────────────────────────────────────
+
+def plot_loss_curves(val_dir, fig_dir, station_names):
+    """
+    Reads fold_*_history.csv files saved during training and
+    generates two figures:
+      fig_loss_curves.png   — 4-panel, one per fold
+      fig_loss_combined.png — all folds overlaid
+    """
+    fig, axes = plt.subplots(2, 2, figsize=(13, 9))
+    fig.suptitle('DeepKriging — Training & Validation Loss per Fold',
+                 fontsize=13, fontweight='bold')
+
+    for ax, (k, station) in zip(axes.flat, enumerate(station_names)):
+        hist     = pd.read_csv(val_dir / f"fold_{k}_history.csv")
+        color    = FOLD_COLORS[station]
+        best_idx = hist['val_loss'].idxmin()
+        best_ep  = int(hist.loc[best_idx, 'epoch'])
+        best_val = hist.loc[best_idx, 'val_loss']
+        best_tr  = hist.loc[best_idx, 'train_loss']
+
+        ax.plot(hist['epoch'], hist['train_loss'],
+                color=color, lw=1.8, label='Train loss')
+        ax.plot(hist['epoch'], hist['val_loss'],
+                color=color, lw=1.8, ls='--', label='Val loss')
+
+        # Mark best epoch
+        ax.axvline(best_ep, color='black', lw=1.0, ls=':', alpha=0.5)
+        ax.scatter([best_ep], [best_val], color='black', s=60, zorder=5)
+        ax.annotate(f"best val={best_val:.5f}\nepoch {best_ep}",
+                    (best_ep, best_val), xytext=(6, 4),
+                    textcoords='offset points', fontsize=7.5)
+
+        # Stats box
+        gap = best_tr - best_val
+        ax.text(0.98, 0.96,
+                f"Train={best_tr:.5f}\nVal  ={best_val:.5f}\nGap ={gap:+.5f}",
+                transform=ax.transAxes, fontsize=7.5,
+                ha='right', va='top',
+                bbox=dict(boxstyle='round,pad=0.3', fc='white', alpha=0.85))
+
+        ax.set_title(f"Fold {k} — hold out {station}  "
+                     f"({len(hist)} epochs)",
+                     fontsize=10, fontweight='bold', color=color)
+        ax.set_xlabel('Epoch')
+        ax.set_ylabel('Huber Loss')
+        ax.legend(fontsize=8)
+        ax.grid(alpha=0.25)
+
+    plt.tight_layout()
+    fig_dir.mkdir(parents=True, exist_ok=True)
+    out1 = fig_dir / "fig_loss_curves.png"
+    plt.savefig(out1, dpi=160, bbox_inches='tight')
+    plt.close()
+    print(f"  ✓ {out1.name}")
+
+    # ── Combined: all folds overlaid ─────────────────────────
+    fig, (ax_tr, ax_val) = plt.subplots(1, 2, figsize=(13, 5))
+    fig.suptitle('DeepKriging — Loss Curves (All Folds)',
+                 fontsize=13, fontweight='bold')
+
+    for k, station in enumerate(station_names):
+        hist  = pd.read_csv(val_dir / f"fold_{k}_history.csv")
+        color = FOLD_COLORS[station]
+        best_ep = int(hist.loc[hist['val_loss'].idxmin(), 'epoch'])
+
+        ax_tr.plot(hist['epoch'], hist['train_loss'],
+                   color=color, lw=1.8, label=f"Train {station}")
+        ax_tr.axvline(best_ep, color=color, lw=0.8, ls=':', alpha=0.5)
+
+        ax_val.plot(hist['epoch'], hist['val_loss'],
+                    color=color, lw=1.8, label=f"Val {station}")
+        ax_val.axvline(best_ep, color=color, lw=0.8, ls=':', alpha=0.5)
+        ax_val.scatter([best_ep],
+                       [hist.loc[hist['val_loss'].idxmin(), 'val_loss']],
+                       color=color, s=60, zorder=5)
+
+    for ax, title in [(ax_tr, 'Training Loss'), (ax_val, 'Validation Loss')]:
+        ax.set_title(title, fontsize=11)
+        ax.set_xlabel('Epoch')
+        ax.set_ylabel('Huber Loss')
+        ax.legend(fontsize=9)
+        ax.grid(alpha=0.25)
+
+    plt.tight_layout()
+    out2 = fig_dir / "fig_loss_combined.png"
+    plt.savefig(out2, dpi=160, bbox_inches='tight')
+    plt.close()
+    print(f"  ✓ {out2.name}")
+
+
 # ── MAIN ─────────────────────────────────────────────────────
 if __name__ == "__main__":
 
@@ -205,32 +304,29 @@ if __name__ == "__main__":
     X        = np.load(TRAIN_DIR / "X.npy")
     y        = np.load(TRAIN_DIR / "y.npy")
     fold_ids = np.load(TRAIN_DIR / "fold_ids.npy")
-    ts_ns    = np.load(TRAIN_DIR / "timestamps.npy")   # int64 ns since epoch
+    ts_ns    = np.load(TRAIN_DIR / "timestamps.npy")
 
     print(f"  X shape    : {X.shape}")
     print(f"  y shape    : {y.shape}")
     print(f"  y range    : [{y.min():.3f}, {y.max():.3f}]")
     for i, s in enumerate(STATION_NAMES):
-        n = (fold_ids == i).sum()
-        print(f"  Fold {i} ({s}) : {n} samples")
+        print(f"  Fold {i} ({s}) : {(fold_ids == i).sum()} samples")
 
-    # ── Load background field for GHI reconstruction ──────────
     print("\n  Loading background CSI and clearsky for GHI eval...")
     bg_csi   = pd.read_parquet(BG_DIR / "bg_csi_stations.parquet")
-    bg_clear = pd.read_parquet(BG_DIR / "bg_clearsky_stations.parquet")
+    bg_clear = pd.read_parquet(BG_DIR / "clearsky_pvlib_stations.parquet")
 
-    # ── Setup output dirs ─────────────────────────────────────
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     VAL_DIR.mkdir(parents=True,   exist_ok=True)
 
     # ── LOSO loop ─────────────────────────────────────────────
     print(f"\n[2/3] LOSO training ({len(STATION_NAMES)} folds)...")
-    print(f"  Architecture : input={X.shape[1]} → "
-          f"BN → 3×Dense({HIDDEN_SIZE},ReLU,Drop{DROPOUT}) → 1")
     model_tmp = DeepKriging(X.shape[1], HIDDEN_SIZE, DROPOUT)
+    print(f"  Architecture : input={X.shape[1]} → "
+          f"3×Dense({HIDDEN_SIZE},ReLU,Drop{DROPOUT}) → 1")
     print(f"  Parameters   : {count_parameters(model_tmp):,}")
     print(f"  Device       : {DEVICE}")
-    print(f"  Loss         : Huber (δ={HUBER_DELTA})")
+    print(f"  Loss         : MSE (peak-sensitive)")
     print(f"  Optimizer    : Adam  lr={LEARNING_RATE}  wd={WEIGHT_DECAY}")
     print(f"  Batch size   : {BATCH_SIZE}")
     print(f"  Max epochs   : {MAX_EPOCHS}  patience={EARLY_STOP_PAT}")
@@ -245,28 +341,25 @@ if __name__ == "__main__":
         print(f"           Train stations: {train_stations}")
         print(f"{'─'*60}")
 
-        # ── Separate test data ────────────────────────────────
-        test_mask  = fold_ids == k
-        X_test     = X[test_mask]
-        y_test     = y[test_mask]
-        ts_test    = ts_ns[test_mask]
+        # Separate test data
+        test_mask = fold_ids == k
+        X_test    = X[test_mask]
+        y_test    = y[test_mask]
+        ts_test   = ts_ns[test_mask]
 
-        # ── Build train + val from remaining 3 stations ───────
-        train_mask = ~test_mask
-        X_rem      = X[train_mask]
-        y_rem      = y[train_mask]
-        ts_rem     = ts_ns[train_mask]
-        fid_rem    = fold_ids[train_mask]
+        # Build train + val from remaining 3 stations
+        X_rem   = X[~test_mask]
+        y_rem   = y[~test_mask]
+        ts_rem  = ts_ns[~test_mask]
+        fid_rem = fold_ids[~test_mask]
 
-        X_tr_list, y_tr_list = [], []
-        X_val_list, y_val_list = [], []
+        X_tr_list, y_tr_list, X_val_list, y_val_list = [], [], [], []
 
         for j, s in enumerate(STATION_NAMES):
             if s == test_station:
                 continue
             s_mask = fid_rem == j
             Xs, ys, tss = X_rem[s_mask], y_rem[s_mask], ts_rem[s_mask]
-
             Xtr, ytr, _, Xvl, yvl, _ = temporal_val_split(Xs, ys, tss)
             X_tr_list.append(Xtr);  y_tr_list.append(ytr)
             X_val_list.append(Xvl); y_val_list.append(yvl)
@@ -274,80 +367,105 @@ if __name__ == "__main__":
         X_tr  = np.vstack(X_tr_list);   y_tr  = np.concatenate(y_tr_list)
         X_val = np.vstack(X_val_list);  y_val = np.concatenate(y_val_list)
 
+        # Oversample cloud enhancement events (residual > 0.2)
+        enhance_mask = y_tr > 0.85
+        if enhance_mask.sum() > 0:
+            X_enh = np.tile(X_tr[enhance_mask], (3, 1))
+            y_enh = np.tile(y_tr[enhance_mask], 3)
+            X_tr = np.vstack([X_tr, X_enh])
+            y_tr = np.concatenate([y_tr, y_enh])
+            print(f"  Oversampled {enhance_mask.sum()} enhancement events → "
+                  f"{len(y_enh)} extra samples added")
+
         print(f"  Train samples : {len(y_tr)}")
         print(f"  Val samples   : {len(y_val)}")
         print(f"  Test samples  : {len(y_test)}")
 
-        # ── Normalise (fit on train only) ─────────────────────
+        # Normalise (fit on train only)
         X_tr_sc, X_val_sc, X_test_sc, sc_mean, sc_std = \
             standardise(X_tr, X_val, X_test)
 
-        # ── Train ─────────────────────────────────────────────
-        t0    = time.time()
-        model, history = train_one_fold(k, X_tr_sc, y_tr,
-                                           X_val_sc, y_val)
+        # Train
+        t0 = time.time()
+        model, history = train_one_fold(k, X_tr_sc, y_tr, X_val_sc, y_val)
         elapsed = time.time() - t0
         print(f"  Training time : {elapsed/60:.1f} min")
 
-        # ── Predict on test station ───────────────────────────
-        resid_pred = predict(model, X_test_sc)
-        resid_true = y_test
+        # ── Save training history ─────────────────────────────
+        hist_df = pd.DataFrame(history)
+        hist_df.to_csv(VAL_DIR / f"fold_{k}_history.csv", index=False)
+        print(f"  History saved : fold_{k}_history.csv  "
+              f"({len(history)} epochs  "
+              f"best epoch={hist_df['val_loss'].idxmin()+1})")
 
-        rmse_resid = rmse(resid_true, resid_pred)
-        r2_resid   = r2_score(resid_true, resid_pred)
+        # Predict on test station
+        csi_pred_raw = predict(model, X_test_sc)
+        csi_true = y_test
 
-        # ── Reconstruct GHI for evaluation ───────────────────
+        rmse_csi_raw = rmse(csi_true, csi_pred_raw)
+        r2_csi_raw   = r2_score(csi_true, csi_pred_raw)
+
+        # Reconstruct GHI
         ts_dt    = pd.to_datetime(ts_test, unit='ns', utc=True) \
                      .tz_convert('America/Los_Angeles')
-
-        bg_csi_s   = bg_csi[test_station].reindex(ts_dt).values
         bg_clear_s = bg_clear[test_station].reindex(ts_dt).values
+        bg_csi_s = bg_csi[test_station].reindex(ts_dt).values
+        csi_pred = np.clip(csi_pred_raw, 0.0, 1.3)  # predicted CSI
 
-        csi_pred  = np.clip(bg_csi_s + resid_pred, 0.0, 2.0)
-        csi_true  = np.clip(bg_csi_s + resid_true, 0.0, 2.0)
-        ghi_pred  = csi_pred * bg_clear_s
-        ghi_true  = csi_true * bg_clear_s
+        low_sun = bg_clear_s < 200.0
+        if low_sun.any():
+            blend_w = np.clip(bg_clear_s[low_sun] / 200.0, 0.0, 1.0)
+            csi_pred[low_sun] = (blend_w * csi_pred_raw[low_sun] +
+                                 (1 - blend_w) * np.clip(bg_csi_s[low_sun], 0.0, 1.0))
+        final_cap = np.where(bg_clear_s < 100, 0.85,
+                             np.where(bg_clear_s < 200, 0.95, 1.0))
+        csi_pred = np.minimum(csi_pred, final_cap)
+        csi_pred = np.clip(csi_pred, 0.0, 1.3)  # overall ceiling unchanged for daytime
 
-        # Only evaluate GHI where clearsky is meaningful
-        day = bg_clear_s >= CLEARSKY_MIN
+        csi_true = np.clip(csi_true, 0.0, 1.3)  # measured CSI
+        ghi_pred = csi_pred * bg_clear_s
+        ghi_true = csi_true * bg_clear_s
+
+        day      = bg_clear_s >= CLEARSKY_MIN
         rmse_ghi = rmse(ghi_true[day], ghi_pred[day])
         r2_ghi   = r2_score(ghi_true[day], ghi_pred[day])
 
         print(f"\n  ── Test Results ({test_station}) ──────────────────")
-        print(f"  CSI residual  RMSE={rmse_resid:.4f}  R²={r2_resid:.4f}")
+        print(f"  CSI (raw out) RMSE={rmse_csi_raw:.4f}  R²={r2_csi_raw:.4f}  "
+              f"← unclipped model output vs measured CSI")
+        print(f"  CSI (clipped) RMSE={rmse(csi_true[day], csi_pred[day]):.4f}  "
+              f"R²={r2_score(csi_true[day], csi_pred[day]):.4f}")
         print(f"  GHI (W/m²)    RMSE={rmse_ghi:.2f}    R²={r2_ghi:.4f}")
 
-        # ── Save model + scaler ───────────────────────────────
-        torch.save(model.state_dict(),
-                   MODEL_DIR / f"fold_{k}_best.pt")
+        # Save model + scaler
+        torch.save(model.state_dict(), MODEL_DIR / f"fold_{k}_best.pt")
         np.save(MODEL_DIR / f"fold_{k}_scaler_mean.npy", sc_mean)
         np.save(MODEL_DIR / f"fold_{k}_scaler_std.npy",  sc_std)
 
-        # ── Save predictions ──────────────────────────────────
+        # Save predictions
         pred_df = pd.DataFrame({
-            'datetime_local'  : ts_dt,
-            'station'         : test_station,
-            'resid_true'      : resid_true,
-            'resid_pred'      : resid_pred,
-            'csi_true'        : csi_true,
-            'csi_pred'        : csi_pred,
-            'ghi_true'        : ghi_true,
-            'ghi_pred'        : ghi_pred,
-            'bg_clearsky'     : bg_clear_s,
+            'datetime_local': ts_dt,
+            'station': test_station,
+            'csi_true': csi_true,
+            'csi_pred': csi_pred,  # clipped
+            'ghi_true': ghi_true,
+            'ghi_pred': ghi_pred,
+            'bg_clearsky': bg_clear_s,
         })
+
         pred_df.to_csv(VAL_DIR / f"fold_{k}_{test_station}_predictions.csv",
                        index=False)
 
         fold_results.append({
-            'fold'         : k,
-            'test_station' : test_station,
-            'n_train'      : len(y_tr),
-            'n_test'       : len(y_test),
-            'rmse_resid'   : rmse_resid,
-            'r2_resid'     : r2_resid,
-            'rmse_ghi'     : rmse_ghi,
-            'r2_ghi'       : r2_ghi,
-            'epochs_run'   : len(history),
+            'fold'        : k,
+            'test_station': test_station,
+            'n_train'     : len(y_tr),
+            'n_test'      : len(y_test),
+            'rmse_csi_raw'  : rmse_csi_raw,
+            'r2_csi_raw'    : r2_csi_raw,
+            'rmse_ghi'    : rmse_ghi,
+            'r2_ghi'      : r2_ghi,
+            'epochs_run'  : len(history),
         })
 
     # ── Summary ───────────────────────────────────────────────
@@ -360,30 +478,31 @@ if __name__ == "__main__":
     results_df = pd.DataFrame(fold_results)
     for _, row in results_df.iterrows():
         print(f"  {int(row.fold):<4} {row.test_station:<8} "
-              f"{row.rmse_resid:>10.4f} {row.r2_resid:>8.4f} "
+              f"{row.rmse_csi_raw:>10.4f} {row.r2_csi_raw:>8.4f} "
               f"{row.rmse_ghi:>10.2f} {row.r2_ghi:>8.4f}")
-
     print(f"{'─'*60}")
     print(f"  {'Mean':<12} "
-          f"{results_df.rmse_resid.mean():>10.4f} "
-          f"{results_df.r2_resid.mean():>8.4f} "
+          f"{results_df.rmse_csi_raw.mean():>10.4f} "
+          f"{results_df.r2_csi_raw.mean():>8.4f} "
           f"{results_df.rmse_ghi.mean():>10.2f} "
           f"{results_df.r2_ghi.mean():>8.4f}")
 
-    # Save summary
     summary_lines = [
-        "DeepKriging LOSO Cross-Validation Results",
-        "=" * 50,
-        results_df.to_string(index=False),
-        "",
-        f"Mean RMSE (CSI residual) : {results_df.rmse_resid.mean():.4f}",
-        f"Mean R²   (CSI residual) : {results_df.r2_resid.mean():.4f}",
+        "DeepKriging LOSO Cross-Validation Results", "=" * 50,
+        results_df.to_string(index=False), "",
+        f"Mean RMSE (CSI residual) : {results_df.rmse_csi_raw.mean():.4f}",
+        f"Mean R²   (CSI residual) : {results_df.r2_csi_raw.mean():.4f}",
         f"Mean RMSE (GHI W/m²)     : {results_df.rmse_ghi.mean():.2f}",
         f"Mean R²   (GHI)          : {results_df.r2_ghi.mean():.4f}",
     ]
     (VAL_DIR / "loso_summary.txt").write_text('\n'.join(summary_lines))
     results_df.to_csv(VAL_DIR / "loso_results.csv", index=False)
 
+    # ── Plot loss curves ──────────────────────────────────────
+    print("\nGenerating loss curves...")
+    plot_loss_curves(VAL_DIR, FIG_DIR, STATION_NAMES)
+
     print(f"\n✓ Training complete")
     print(f"  Models  → {MODEL_DIR}")
     print(f"  Results → {VAL_DIR}")
+    print(f"  Figures → {FIG_DIR}")

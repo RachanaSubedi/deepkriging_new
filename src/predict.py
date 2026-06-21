@@ -88,10 +88,18 @@ def build_cov_matrix(timestamps, bg_csi, bg_clearsky,
     daily_max = np.where(daily_max < 1.0, 1.0, daily_max)
     cs_frac = (cs / daily_max).astype(np.float32)
 
-    # DOY sine
-    doy     = timestamps.day_of_year.values[:, None]   # (T, 1)
+    # DOY sine and cosine
+    doy = timestamps.day_of_year.values[:, None]  # (T, 1)
     doy_sin = np.sin(2 * np.pi * doy / 365).astype(np.float32)
     doy_sin = np.broadcast_to(doy_sin, (T, M)).copy()
+    doy_cos = np.cos(2 * np.pi * doy / 365).astype(np.float32)
+    doy_cos = np.broadcast_to(doy_cos, (T, M)).copy()
+    hour = pd.Series(timestamps).dt.hour.values + \
+           pd.Series(timestamps).dt.minute.values / 60.0
+    hour_sin = np.sin(2 * np.pi * hour[:, None] / 24).astype(np.float32)
+    hour_cos = np.cos(2 * np.pi * hour[:, None] / 24).astype(np.float32)
+    hour_sin = np.broadcast_to(hour_sin, (T, M)).copy()
+    hour_cos = np.broadcast_to(hour_cos, (T, M)).copy()
 
     # Elevation broadcast
     elev = np.broadcast_to(elev_vec[None, :], (T, M)).copy().astype(np.float32)
@@ -112,6 +120,9 @@ def build_cov_matrix(timestamps, bg_csi, bg_clearsky,
         norm(met_arrays['cloud_type'],   *MET_NORM['cloud_type']),
         norm(elev,                       *MET_NORM['elevation']),
         doy_sin,
+        doy_cos,
+        hour_sin,
+        hour_cos
     ], axis=2).astype(np.float32)   # (T, M, 15)
 
     return cov
@@ -137,7 +148,7 @@ if __name__ == "__main__":
     print(f"\n[1/5] Loading {N_FOLDS} LOSO models...")
     models, scalers = [], []
     for k in range(N_FOLDS):
-        m = DeepKriging(N_BASIS + 15, HIDDEN_SIZE, DROPOUT).to(DEVICE)
+        m = DeepKriging(N_BASIS + 18, HIDDEN_SIZE, DROPOUT).to(DEVICE)
         m.load_state_dict(
             torch.load(MODEL_DIR / f"fold_{k}_best.pt",
                        map_location=DEVICE))
@@ -174,7 +185,7 @@ if __name__ == "__main__":
 
     # Background fields
     bg_csi_pvs   = pd.read_parquet(BG_DIR / "bg_csi_pvs.parquet")
-    bg_clear_pvs = pd.read_parquet(BG_DIR / "bg_clearsky_pvs.parquet")
+    bg_clear_pvs = pd.read_parquet(BG_DIR / "clearsky_pvlib_pvs.parquet")
 
     # Met variables
     met_pvs = {k: pd.read_parquet(BG_DIR / f"met_{k}_pvs.parquet")
@@ -228,7 +239,7 @@ if __name__ == "__main__":
     day_mask = cs_arr >= CLEARSKY_MIN   # (T, M)
 
     # Output arrays
-    resid_out = np.full((T, M), np.nan, dtype=np.float32)
+    csi_raw_out = np.full((T, M), np.nan, dtype=np.float32)
     csi_out   = np.full((T, M), np.nan, dtype=np.float32)
     ghi_out   = np.full((T, M), np.nan, dtype=np.float32)
 
@@ -261,11 +272,31 @@ if __name__ == "__main__":
             resid_k = predict_batch(model, X_j_sc)
             fold_preds.append(resid_k)
 
-        resid_j = np.mean(fold_preds, axis=0)             # (T_day,)
-        csi_j   = np.clip(bg_j + resid_j, 0.0, 2.0)
-        ghi_j   = csi_j * cs_j
+        csi_pred_j = np.mean(fold_preds, axis=0)
+        csi_j = np.clip(csi_pred_j, 0.0, 1.3)  # initial ceiling
 
-        resid_out[day_j, j] = resid_j
+        # At very low clearsky (near sunrise/sunset), the model has insufficient
+        # signal (unstable lag/BT features) and saturates near the clip ceiling.
+        # Blend toward the NSRDB background CSI instead of trusting the raw
+        # model output, with a tiered final cap since cloud enhancement is
+        # not physically plausible at very low sun angles.
+        LOW_SUN_BLEND_THRESHOLD = 200.0  # W/m²
+
+        low_sun = cs_j < LOW_SUN_BLEND_THRESHOLD
+        if low_sun.any():
+            blend_w = np.clip(cs_j[low_sun] / LOW_SUN_BLEND_THRESHOLD, 0.0, 1.0)
+            csi_j[low_sun] = (blend_w * csi_pred_j[low_sun] +
+                              (1 - blend_w) * np.clip(bg_j[low_sun], 0.0, 1.0))
+
+        # Tiered final cap based on clearsky level (after blend)
+        final_cap = np.where(cs_j < 100, 0.85,
+                             np.where(cs_j < 200, 0.95, 1.3))
+        csi_j = np.minimum(csi_j, final_cap)
+        csi_j = np.clip(csi_j, 0.0, 1.3)
+
+        ghi_j = csi_j * cs_j
+
+        csi_raw_out[day_j, j] = csi_pred_j
         csi_out[day_j, j]   = csi_j
         ghi_out[day_j, j]   = ghi_j
 
@@ -293,7 +324,7 @@ if __name__ == "__main__":
 
     ghi_df   = save_pred(ghi_out,   "ghi_pvs")
     csi_df   = save_pred(csi_out,   "csi_pvs")
-    resid_df = save_pred(resid_out, "residual_pvs")
+    csi_raw_df = save_pred(csi_raw_out, "csi_pred_raw_pvs")
 
     # ── Quick summary ─────────────────────────────────────────
     print(f"\n── Prediction Summary ───────────────────────────────")
