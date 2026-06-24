@@ -449,6 +449,8 @@ if __name__ == "__main__":
             'station': test_station,
             'csi_true': csi_true,
             'csi_pred': csi_pred,  # clipped
+            'csi_pred_raw': csi_pred_raw,  # raw model output, before blend/cap
+            'bg_csi': bg_csi_s,  # NSRDB-derived background CSI covariate
             'ghi_true': ghi_true,
             'ghi_pred': ghi_pred,
             'bg_clearsky': bg_clear_s,

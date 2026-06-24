@@ -18,11 +18,15 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import sys
 
+#sys.path.append(str(Path(__file__).parent.parent))
+#from configs.config import FIG_DIR, STATIONS
 sys.path.append(str(Path(__file__).parent.parent))
 from configs.config import FIG_DIR, STATIONS
+FIG_DIR = FIG_DIR.parent / (FIG_DIR.name + "_nocov")
 
 # ── PATHS ─────────────────────────────────────────────────────
-PRED_CSV = Path(__file__).parent.parent / "outputs" / "predictions" / "ghi_pvs_corrected.csv"
+#PRED_CSV = Path(__file__).parent.parent / "outputs" / "predictions" / "ghi_pvs_corrected.csv"
+PRED_CSV = Path(__file__).parent.parent / "outputs" / "predictions_nocov" / "ghi_pvs.parquet"
 PV_CSV      = Path(__file__).parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
 STATION_CSV = (Path(__file__).parent.parent / "data" / "raw" / "stations"
                / "all_stations_GHI_30min_PST_filled.csv")
@@ -32,8 +36,10 @@ STATION_COLORS = {'S1': '#e63946', 'S2': '#2a9d8f',
 
 # ── LOAD ─────────────────────────────────────────────────────
 print("Loading predictions...")
-ghi_all = pd.read_csv(PRED_CSV, index_col='datetime', parse_dates=True)
-ghi_all.index = pd.to_datetime(ghi_all.index, format='%m/%d/%Y %H:%M')
+#ghi_all = pd.read_csv(PRED_CSV, index_col='datetime', parse_dates=True)
+#ghi_all.index = pd.to_datetime(ghi_all.index, format='%m/%d/%Y %H:%M')
+ghi_all = pd.read_parquet(PRED_CSV)
+ghi_all.index = ghi_all.index.tz_localize(None)
 
 pv_df    = pd.read_csv(PV_CSV)
 pv_names = pv_df['pv_name'].tolist()
@@ -90,7 +96,7 @@ def spatial_ax(ax, row_series, vmin, vmax, title):
 # ══════════════════════════════════════════════════════════════
 # FIGURE SET 1 — APRIL 30 ANALYSIS
 # ══════════════════════════════════════════════════════════════
-apr30 = ghi_all[ghi_all.index.date == pd.Timestamp('2024-03-22').date()]
+apr30 = ghi_all[ghi_all.index.date == pd.Timestamp('2024-04-22').date()]
 daytime = apr30.dropna(how='all')
 
 print(f"\nApril 30 summary:")
@@ -117,13 +123,13 @@ for col in pv_names[::10]:   # every 10th PV for legibility
             lw=0.5, alpha=0.5, zorder=1)
 
 if have_stations:
-    apr30_st = st[st.index.date == pd.Timestamp('2024-03-22').date()]
+    apr30_st = st[st.index.date == pd.Timestamp('2024-04-22').date()]
     for s, col in STATION_COLORS.items():
         if s in apr30_st.columns:
             ax.plot(apr30_st.index, apr30_st[s], color=col,
                     lw=2.2, ls='--', label=f'{s} measured', zorder=4)
 
-ax.set_title('March 22, 2024 - Predicted GHI at 178 PV Locations vs Station Measurements\n',
+ax.set_title('April 22, 2024 - Predicted GHI at 178 PV Locations vs Station Measurements\n',
              fontsize=12, fontweight='bold')
 ax.set_xlabel('Time (PDT)')
 ax.set_ylabel('GHI (W/m²)')
