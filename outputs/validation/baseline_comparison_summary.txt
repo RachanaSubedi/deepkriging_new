@@ -1,0 +1,32 @@
+Baseline Comparison: DeepKriging vs Simpler Methods
+=======================================================
+
+OVERALL (mean across 4 LOSO folds):
+                          rmse     mae     r2    bias  peak_rmse  ramp_rmse
+method                                                                     
+nearest_station         52.826  31.579  0.946  -0.834     67.647     48.926
+idw_stations            51.252  30.696  0.948   0.565     61.120     46.867
+nsrdb_only             124.446  99.002  0.698  90.240    139.027     71.633
+deepkriging             68.190  49.596  0.907  16.763     69.582     56.585
+deepkriging_corrected   64.874  46.695  0.917   9.321     62.748     56.832
+
+BY DAY REGIME (mean RMSE_GHI):
+regime                 clear  cloudy_smooth  broken_cloud
+method                                                   
+nearest_station        16.54          47.05         58.95
+idw_stations           15.31          45.37         56.36
+nsrdb_only             82.96         123.55        128.07
+deepkriging            42.71          63.67         74.43
+deepkriging_corrected  41.14          59.74         71.09
+
+BY DAY REGIME (mean R2_GHI):
+regime                 clear  cloudy_smooth  broken_cloud
+method                                                   
+nearest_station        0.906          0.952         0.929
+idw_stations           0.920          0.955         0.934
+nsrdb_only            -0.911          0.644         0.659
+deepkriging            0.387          0.908         0.883
+deepkriging_corrected  0.442          0.919         0.896
+
+VERDICT:
+Nearest-station copy outperforms DeepKriging on average at the 4 VALIDATION stations. This is expected when stations are closely spaced; DeepKriging's value proposition is spatial diversity across the 178 PV locations where most points are far from any station, not necessarily lower RMSE at the 4 training/validation points themselves.

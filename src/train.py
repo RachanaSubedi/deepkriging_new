@@ -418,7 +418,8 @@ if __name__ == "__main__":
             csi_pred[low_sun] = (blend_w * csi_pred_raw[low_sun] +
                                  (1 - blend_w) * np.clip(bg_csi_s[low_sun], 0.0, 1.0))
         final_cap = np.where(bg_clear_s < 100, 0.85,
-                             np.where(bg_clear_s < 200, 0.95, 1.0))
+                             np.where(bg_clear_s < 200, 0.90,
+                                      np.where(bg_clear_s < 350, 0.95, 1.3)))
         csi_pred = np.minimum(csi_pred, final_cap)
         csi_pred = np.clip(csi_pred, 0.0, 1.3)  # overall ceiling unchanged for daytime
 

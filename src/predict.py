@@ -148,7 +148,7 @@ if __name__ == "__main__":
     print(f"\n[1/5] Loading {N_FOLDS} LOSO models...")
     models, scalers = [], []
     for k in range(N_FOLDS):
-        m = DeepKriging(N_BASIS + 18, HIDDEN_SIZE, DROPOUT).to(DEVICE)
+        m = DeepKriging(N_BASIS + 19, HIDDEN_SIZE, DROPOUT).to(DEVICE)
         m.load_state_dict(
             torch.load(MODEL_DIR / f"fold_{k}_best.pt",
                        map_location=DEVICE))
@@ -224,16 +224,16 @@ if __name__ == "__main__":
                for k in MET_KEYS}
 
     # C13 features: MultiIndex → (T, M) per feature
-    c13_norm_arr  = c13_pvs.xs('bt_norm',  axis=1, level=1)[pv_names].values
+    c13_norm_arr = c13_pvs.xs('bt_norm', axis=1, level=1)[pv_names].values
     c13_lag30_arr = c13_pvs.xs('bt_lag30', axis=1, level=1)[pv_names].values
-    c13_diff_arr  = c13_pvs.xs('bt_diff',  axis=1, level=1)[pv_names].values
+    c13_diff_arr = c13_pvs.xs('bt_diff', axis=1, level=1)[pv_names].values
 
     # Build (T, M, 15) covariate tensor
     cov_all = build_cov_matrix(
         common, bg_arr, cs_arr,
         c13_norm_arr, c13_lag30_arr, c13_diff_arr,
         met_arr, elev_pvs,
-    )   # (T, M, 15)
+    )
 
     # Daytime mask (T, M)
     day_mask = cs_arr >= CLEARSKY_MIN   # (T, M)
@@ -289,10 +289,12 @@ if __name__ == "__main__":
                               (1 - blend_w) * np.clip(bg_j[low_sun], 0.0, 1.0))
 
         # Tiered final cap based on clearsky level (after blend)
-        final_cap = np.where(cs_j < 100, 0.85,
-                             np.where(cs_j < 200, 0.95, 1.3))
-        csi_j = np.minimum(csi_j, final_cap)
-        csi_j = np.clip(csi_j, 0.0, 1.3)
+            # Tiered final cap based on clearsky level (after blend)
+            final_cap = np.where(cs_j < 100, 0.85,
+                                 np.where(cs_j < 200, 0.90,
+                                          np.where(cs_j < 350, 0.95, 1.3)))
+            csi_j = np.minimum(csi_j, final_cap)
+            csi_j = np.clip(csi_j, 0.0, 1.3)
 
         ghi_j = csi_j * cs_j
 

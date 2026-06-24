@@ -90,7 +90,7 @@ def spatial_ax(ax, row_series, vmin, vmax, title):
 # ══════════════════════════════════════════════════════════════
 # FIGURE SET 1 — APRIL 30 ANALYSIS
 # ══════════════════════════════════════════════════════════════
-apr30 = ghi_all[ghi_all.index.date == pd.Timestamp('2024-01-15').date()]
+apr30 = ghi_all[ghi_all.index.date == pd.Timestamp('2024-03-22').date()]
 daytime = apr30.dropna(how='all')
 
 print(f"\nApril 30 summary:")
@@ -117,13 +117,13 @@ for col in pv_names[::10]:   # every 10th PV for legibility
             lw=0.5, alpha=0.5, zorder=1)
 
 if have_stations:
-    apr30_st = st[st.index.date == pd.Timestamp('2024-01-15').date()]
+    apr30_st = st[st.index.date == pd.Timestamp('2024-03-22').date()]
     for s, col in STATION_COLORS.items():
         if s in apr30_st.columns:
             ax.plot(apr30_st.index, apr30_st[s], color=col,
                     lw=2.2, ls='--', label=f'{s} measured', zorder=4)
 
-ax.set_title('January 15, 2024 - Predicted GHI at 178 PV Locations vs Station Measurements\n',
+ax.set_title('March 22, 2024 - Predicted GHI at 178 PV Locations vs Station Measurements\n',
              fontsize=12, fontweight='bold')
 ax.set_xlabel('Time (PDT)')
 ax.set_ylabel('GHI (W/m²)')

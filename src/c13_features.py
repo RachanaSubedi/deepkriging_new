@@ -144,14 +144,16 @@ def compute_bt_features(bt_series):
     # Fill small gaps (up to 2 missing steps = 1 hour)
     bt = bt.interpolate(method='time', limit=2)
 
-    bt_norm  = (bt - BT_REF_K) / BT_SCALE_K
+    bt_norm = (bt - BT_REF_K) / BT_SCALE_K
     bt_lag30 = bt_norm.shift(1)
-    bt_diff  = bt_norm - bt_lag30          # = bt_norm(t) - bt_norm(t-1)
+    bt_diff = bt_norm - bt_lag30  # bt_norm(t) - bt_norm(t-30min)
+    bt_diff60 = bt_norm - bt_norm.shift(2)  # bt_norm(t) - bt_norm(t-60min)
 
     return pd.DataFrame({
-        'bt_norm'  : bt_norm,
-        'bt_lag30' : bt_lag30,
-        'bt_diff'  : bt_diff,
+        'bt_norm': bt_norm,
+        'bt_lag30': bt_lag30,
+        'bt_diff': bt_diff,
+        'bt_diff60': bt_diff60,
     })
 
 
