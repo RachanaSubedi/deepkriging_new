@@ -53,7 +53,7 @@ def load_station_ghi(filepath):
     df = pd.read_csv(filepath, sep=None, engine='python', encoding='utf-8-sig')
 
     # Parse datetime — PST fixed offset (UTC-8), no DST shifts in data
-    df['datetime'] = pd.to_datetime(df['datetime'], format='ISO8601')
+    df['datetime'] = pd.to_datetime(df['datetime'], format='mixed')
     df = df.set_index('datetime')
     df.index = df.index.tz_localize('Etc/GMT+8')          # PST = UTC-8
     df.index = df.index.tz_convert('America/Los_Angeles')  # match background

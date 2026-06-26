@@ -148,7 +148,7 @@ if __name__ == "__main__":
     print(f"\n[1/5] Loading {N_FOLDS} LOSO models...")
     models, scalers = [], []
     for k in range(N_FOLDS):
-        m = DeepKriging(N_BASIS + 19, HIDDEN_SIZE, DROPOUT).to(DEVICE)
+        m = DeepKriging(N_BASIS + 18, HIDDEN_SIZE, DROPOUT).to(DEVICE)
         m.load_state_dict(
             torch.load(MODEL_DIR / f"fold_{k}_best.pt",
                        map_location=DEVICE))
@@ -289,12 +289,15 @@ if __name__ == "__main__":
                               (1 - blend_w) * np.clip(bg_j[low_sun], 0.0, 1.0))
 
         # Tiered final cap based on clearsky level (after blend)
-            # Tiered final cap based on clearsky level (after blend)
-            final_cap = np.where(cs_j < 100, 0.85,
-                                 np.where(cs_j < 200, 0.90,
-                                          np.where(cs_j < 350, 0.95, 1.3)))
-            csi_j = np.minimum(csi_j, final_cap)
-            csi_j = np.clip(csi_j, 0.0, 1.3)
+        # Applied to ALL timesteps, not just low-sun ones — this was
+        # previously nested inside `if low_sun.any():`, which meant any
+        # PV with zero low-sun timesteps in its series never had the cap
+        # applied at all. Fixed June 2026.
+        final_cap = np.where(cs_j < 100, 0.85,
+                             np.where(cs_j < 200, 0.90,
+                                      np.where(cs_j < 350, 0.95, 1.3)))
+        csi_j = np.minimum(csi_j, final_cap)
+        csi_j = np.clip(csi_j, 0.0, 1.3)
 
         ghi_j = csi_j * cs_j
 

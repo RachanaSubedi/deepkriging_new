@@ -180,12 +180,15 @@ if __name__ == "__main__":
                               (1 - blend_w) * np.clip(bg_j[low_sun], 0.0, 1.0))
 
         # Tiered final cap based on clearsky level (after blend)
-            # Tiered final cap based on clearsky level (after blend)
-            final_cap = np.where(cs_j < 100, 0.85,
-                                 np.where(cs_j < 200, 0.90,
-                                          np.where(cs_j < 350, 0.95, 1.3)))
-            csi_j = np.minimum(csi_j, final_cap)
-            csi_j = np.clip(csi_j, 0.0, 1.3)
+        # Applied to ALL timesteps, not just low-sun ones — this was
+        # previously nested inside `if low_sun.any():`, which meant any
+        # PV with zero low-sun timesteps in its series never had the cap
+        # applied at all. Fixed June 2026 (matches predict.py fix).
+        final_cap = np.where(cs_j < 100, 0.85,
+                             np.where(cs_j < 200, 0.90,
+                                      np.where(cs_j < 350, 0.95, 1.3)))
+        csi_j = np.minimum(csi_j, final_cap)
+        csi_j = np.clip(csi_j, 0.0, 1.3)
 
         ghi_j = csi_j * cs_j
 

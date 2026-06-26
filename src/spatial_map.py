@@ -1,12 +1,13 @@
 """
 src/spatial_map.py
 
-Spatial GHI visualisation across 178 PV locations.
+Spatial GHI visualisation across 178 PV locations, using the
+full (real, covariate-driven) DeepKriging model's corrected output.
 
-Produces:
-  fig_april30_timeseries.png   all PV predictions vs station measurements Apr 30
-  fig_april30_spatial.png      4 spatial snapshots during Apr 30
-  fig_spatial_4panel.png       best clear / partly-cloudy / overcast auto-selected
+Produces (outputs/figures/):
+  fig_{TARGET_DATE}_timeseries.png   all PV predictions vs station measurements
+  fig_{TARGET_DATE}_spatial.png      4 spatial snapshots across the day
+  fig_spatial_4panel.png             best clear / partly-cloudy / overcast auto-selected
 
 Run:
     python src/spatial_map.py
@@ -18,15 +19,17 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import sys
 
-#sys.path.append(str(Path(__file__).parent.parent))
-#from configs.config import FIG_DIR, STATIONS
 sys.path.append(str(Path(__file__).parent.parent))
 from configs.config import FIG_DIR, STATIONS
-FIG_DIR = FIG_DIR.parent / (FIG_DIR.name + "_nocov")
+
+# ── Which date to plot — change this, nothing else needs editing ──
+TARGET_DATE = "2024-03-22"
 
 # ── PATHS ─────────────────────────────────────────────────────
-#PRED_CSV = Path(__file__).parent.parent / "outputs" / "predictions" / "ghi_pvs_corrected.csv"
-PRED_CSV = Path(__file__).parent.parent / "outputs" / "predictions_nocov" / "ghi_pvs.parquet"
+# Real model output (full covariates, quantile-corrected). NOT the
+# _nocov ablation — that lives in a separate predictions_nocov/ dir
+# and should be plotted with a separate script call if ever needed.
+PRED_CSV    = Path(__file__).parent.parent / "outputs" / "predictions" / "ghi_pvs_corrected.csv"
 PV_CSV      = Path(__file__).parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
 STATION_CSV = (Path(__file__).parent.parent / "data" / "raw" / "stations"
                / "all_stations_GHI_30min_PST_filled.csv")
@@ -36,10 +39,8 @@ STATION_COLORS = {'S1': '#e63946', 'S2': '#2a9d8f',
 
 # ── LOAD ─────────────────────────────────────────────────────
 print("Loading predictions...")
-#ghi_all = pd.read_csv(PRED_CSV, index_col='datetime', parse_dates=True)
-#ghi_all.index = pd.to_datetime(ghi_all.index, format='%m/%d/%Y %H:%M')
-ghi_all = pd.read_parquet(PRED_CSV)
-ghi_all.index = ghi_all.index.tz_localize(None)
+ghi_all = pd.read_csv(PRED_CSV, index_col='datetime', parse_dates=True)
+ghi_all.index = pd.to_datetime(ghi_all.index, format='%m/%d/%Y %H:%M')
 
 pv_df    = pd.read_csv(PV_CSV)
 pv_names = pv_df['pv_name'].tolist()
@@ -52,7 +53,7 @@ try:
     st.index = (pd.to_datetime(st.index)
                 .tz_localize('Etc/GMT+8')  # label as PST
                 .tz_convert('America/Los_Angeles')  # convert to PDT
-                .tz_localize(None))  # strip tz → naive PDT
+                .tz_localize(None))  # strip tz → naive PDT, matches ghi_all
     st.columns = [c.replace('GHI_', '') for c in st.columns]
     have_stations = True
     print("  Station data loaded")
@@ -94,12 +95,21 @@ def spatial_ax(ax, row_series, vmin, vmax, title):
 
 
 # ══════════════════════════════════════════════════════════════
-# FIGURE SET 1 — APRIL 30 ANALYSIS
+# FIGURE SET 1 — TARGET_DATE ANALYSIS
 # ══════════════════════════════════════════════════════════════
-apr30 = ghi_all[ghi_all.index.date == pd.Timestamp('2024-04-22').date()]
-daytime = apr30.dropna(how='all')
+target_date_obj = pd.Timestamp(TARGET_DATE).date()
+date_tag = TARGET_DATE  # used in filenames, e.g. "2024-03-22"
 
-print(f"\nApril 30 summary:")
+day = ghi_all[ghi_all.index.date == target_date_obj]
+daytime = day.dropna(how='all')
+
+if daytime.empty:
+    raise ValueError(
+        f"No predictions found for {TARGET_DATE}. "
+        f"Available range: {ghi_all.index[0].date()} to {ghi_all.index[-1].date()}"
+    )
+
+print(f"\n{TARGET_DATE} summary:")
 print(f"  Daytime rows  : {len(daytime)}")
 print(f"  Max GHI       : {daytime.max().max():.1f} W/m²")
 print(f"  Mean daytime  : {daytime.values[~np.isnan(daytime.values)].mean():.1f} W/m²")
@@ -107,29 +117,27 @@ print(f"  Mean daytime  : {daytime.values[~np.isnan(daytime.values)].mean():.1f}
 # ── Fig 1a: Time series ───────────────────────────────────────
 fig, ax = plt.subplots(figsize=(13, 5))
 
-# Plot all 178 PV predictions as faint individual lines
 for col in pv_names:
     ax.plot(daytime.index, daytime[col], color='steelblue',
             lw=0.9, alpha=0.3, zorder=1)
 
-# Median line on top for reference
 pv_med = daytime.median(axis=1)
 ax.plot(daytime.index, pv_med, color='steelblue', lw=2,
         label='PV median prediction', zorder=3)
 
-# Faint individual PV lines
-for col in pv_names[::10]:   # every 10th PV for legibility
+for col in pv_names[::10]:
     ax.plot(daytime.index, daytime[col], color='lightsteelblue',
             lw=0.5, alpha=0.5, zorder=1)
 
 if have_stations:
-    apr30_st = st[st.index.date == pd.Timestamp('2024-04-22').date()]
+    day_st = st[st.index.date == target_date_obj]
     for s, col in STATION_COLORS.items():
-        if s in apr30_st.columns:
-            ax.plot(apr30_st.index, apr30_st[s], color=col,
+        if s in day_st.columns:
+            ax.plot(day_st.index, day_st[s], color=col,
                     lw=2.2, ls='--', label=f'{s} measured', zorder=4)
 
-ax.set_title('April 22, 2024 - Predicted GHI at 178 PV Locations vs Station Measurements\n',
+ax.set_title(f'{pd.Timestamp(TARGET_DATE).strftime("%B %d, %Y")} - '
+             f'Predicted GHI at 178 PV Locations vs Station Measurements\n',
              fontsize=12, fontweight='bold')
 ax.set_xlabel('Time (PDT)')
 ax.set_ylabel('GHI (W/m²)')
@@ -137,13 +145,13 @@ ax.legend(loc='upper left', fontsize=8, ncol=4)
 ax.grid(alpha=0.25)
 ax.set_xlim(daytime.index[0], daytime.index[-1])
 
-out = FIG_DIR / "fig_april30_timeseries.png"
+out = FIG_DIR / f"fig_{date_tag}_timeseries.png"
 plt.tight_layout()
 plt.savefig(out, dpi=160, bbox_inches='tight')
 plt.close()
 print(f"\n  ✓ {out.name}")
 
-# ── Fig 1b: 4 spatial snapshots across April 30 ──────────────
+# ── Fig 1b: 4 spatial snapshots across TARGET_DATE ──────────────
 row_std  = daytime.std(axis=1)
 row_mean = daytime.mean(axis=1)
 
@@ -156,12 +164,12 @@ afternoon_ts = row_mean[aft_mask].idxmax() if aft_mask.any() else daytime.index[
 
 snapshots = [
     (morning_ts,   f"Morning  {morning_ts.strftime('%H:%M')} PDT"),
-    (peak_var_ts,  f"Peak Variability  {peak_var_ts.strftime('12:30')} PDT"),
+    (peak_var_ts,  f"Peak Variability  {peak_var_ts.strftime('%H:%M')} PDT"),
     (peak_ghi_ts,  f"Peak GHI  {peak_ghi_ts.strftime('%H:%M')} PDT"),
     (afternoon_ts, f"Afternoon  {afternoon_ts.strftime('%H:%M')} PDT"),
 ]
 
-print("\n  Snapshot times on April 30:")
+print(f"\n  Snapshot times on {TARGET_DATE}:")
 for ts, label in snapshots:
     r = daytime.loc[ts]
     print(f"    {label:45s} mean={r.mean():.0f}  max={r.max():.0f}  std={r.std():.1f}")
@@ -170,7 +178,7 @@ all_day_vals = daytime.values[~np.isnan(daytime.values)]
 vmax_shared  = np.percentile(all_day_vals, 98)
 
 fig, axes = plt.subplots(1, 4, figsize=(18, 5.5))
-fig.suptitle('April 30, 2024 — Predicted GHI Spatial Distribution\n'
+fig.suptitle(f'{pd.Timestamp(TARGET_DATE).strftime("%B %d, %Y")} — Predicted GHI Spatial Distribution\n'
              'IEEE 9500-Node S2 Feeder  (178 PV locations,  colorbar = 0–{:.0f} W/m²)'.format(vmax_shared),
              fontsize=12, fontweight='bold')
 
@@ -180,7 +188,7 @@ for ax, (ts, label) in zip(axes, snapshots):
 cbar = fig.colorbar(sc, ax=axes.tolist(), shrink=0.7, pad=0.02)
 cbar.set_label('GHI (W/m²)', fontsize=11)
 
-out = FIG_DIR / "fig_april30_spatial.png"
+out = FIG_DIR / f"fig_{date_tag}_spatial.png"
 plt.tight_layout()
 plt.savefig(out, dpi=160, bbox_inches='tight')
 plt.close()
@@ -189,6 +197,7 @@ print(f"  ✓ {out.name}")
 
 # ══════════════════════════════════════════════════════════════
 # FIGURE SET 2 — BEST AUTO-SELECTED CLEAR / CLOUDY / OVERCAST
+# (uses the FULL year of predictions, not just TARGET_DATE)
 # ══════════════════════════════════════════════════════════════
 peak_hours = ghi_all[ghi_all.index.hour.isin(range(9, 16))].dropna(how='all')
 rmean = peak_hours.mean(axis=1)
