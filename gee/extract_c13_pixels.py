@@ -1,25 +1,43 @@
 """
-gee/extract_c13_pixels.py
+gee/extract_c13_c02_pixels.py
 
-Extracts GOES-18 C13 brightness temperature at all unique GOES pixels
-covering the domain, using a Google Earth Engine service account.
+Extracts GOES-18 C13 brightness temperature AND C02 visible/near-IR
+reflectance at all unique GOES pixels covering the domain, using a
+Google Earth Engine service account.
+
+Extends extract_c13_pixels.py to pull a second band (CMI_C02) in the
+SAME export pass — same pixels, same collection, same timestamps —
+rather than running a separate extraction.
+
+C13 = 10.3 um clean longwave IR   -> cloud-top temperature signal
+C02 = 0.64 um visible reflectance -> cloud brightness/reflectance,
+      physically distinct from C13 (temperature vs. reflectance).
+      Daytime-only signal (meaningless at night — fine for GHI work
+      since irradiance is zero at night anyway).
+
+NOTE on cadence: NOAA/GOES/.../MCMIPC is published at ~10-minute
+cadence (confirmed empirically for this collection), not 5-minute.
+If downstream work needs a 5-minute grid, this collection alone will
+not provide it natively — merge_asof with a tolerance window against
+the 5-min target grid is still required after download, same as the
+original C13-only pipeline.
 
 Prerequisites:
     pip install earthengine-api
 
 Run:
-    python gee/extract_c13_pixels.py
+    python gee/extract_c13_c02_pixels.py
 
 Reads:
     data/processed/goes_pixel_list.csv   (from pixel_mapping.py)
 
 Exports to Google Drive:
-    Folder: goes18_c13_pixels/
-    One CSV per pixel: goes18_c13_px_{lat}_{lon}.csv
-    Columns: datetime_utc, bt_c13_K, pixel_id
+    Folder: goes18_c13_c02_pixels/
+    One CSV per pixel: goes18_c13_c02_px_{lat}_{lon}.csv
+    Columns: datetime_utc, bt_c13_raw, refl_c02_raw, pixel_id
 
 After GEE exports finish (check Task Manager at code.earthengine.google.com):
-    Download CSVs from Drive → data/raw/goes_c13/extracted_pixels/
+    Download CSVs from Drive → data/raw/goes_c13_c02/extracted_pixels/
 """
 
 import ee
@@ -37,7 +55,7 @@ from configs.config import (
 )
 
 # ── SETTINGS ─────────────────────────────────────────────────
-DRIVE_FOLDER  = "goes18_c13_pixels"
+DRIVE_FOLDER  = "goes18_c13_c02_pixels"
 START_DATE    = "2024-01-01"
 END_DATE      = "2025-01-01"
 SCALE_METERS  = 2000
@@ -58,49 +76,50 @@ def init_gee():
 # ── BUILD EXPORT TASK FOR ONE PIXEL ──────────────────────────
 def export_pixel(pixel_id, lat, lon, task_list):
     """
-    Extracts a time series of C13 BT at (lat, lon) and submits
-    a GEE export task to Google Drive.
+    Extracts a time series of C13 BT and C02 reflectance at
+    (lat, lon) and submits a GEE export task to Google Drive.
 
     The export produces one CSV row per GOES-18 image (~10-min cadence).
-    Columns: system:time_start, CMI_C13, pixel_id
+    Columns: datetime_utc, bt_c13_raw, refl_c02_raw, pixel_id
     """
     point = ee.Geometry.Point([lon, lat])
 
-    # Load and filter GOES-18 MCMIPC collection
+    # Load and filter GOES-18 MCMIPC collection — both bands in one pass
     col = (
         ee.ImageCollection(GEE_DATASET)
         .filterDate(START_DATE, END_DATE)
-        .select('CMI_C13')
+        .select(['CMI_C13', 'CMI_C02'])
     )
 
-    # Map over images: extract value at point, attach timestamp
+    # Map over images: extract values at point, attach timestamp
     def extract_value(image):
-        bt_raw = image.reduceRegion(
+        vals = image.reduceRegion(
             reducer=ee.Reducer.mean(),
             geometry=point.buffer(GOES_BUFFER_M),
             scale=SCALE_METERS,
         )
         return ee.Feature(None, {
-            'datetime_utc' : image.date().format('YYYY-MM-dd HH:mm:ss'),
-            'bt_c13_raw'   : bt_raw.get('CMI_C13'),
-            'pixel_id'     : pixel_id,
+            'datetime_utc'  : image.date().format('YYYY-MM-dd HH:mm:ss'),
+            'bt_c13_raw'    : vals.get('CMI_C13'),
+            'refl_c02_raw'  : vals.get('CMI_C02'),
+            'pixel_id'      : pixel_id,
         })
 
     features = col.map(extract_value)
     fc = ee.FeatureCollection(features)
 
     # Sanitised filename (no dots or minus signs that cause Drive issues)
-    safe_name = (f"goes18_c13_{pixel_id}"
+    safe_name = (f"goes18_c13_c02_{pixel_id}"
                  .replace('.', 'p')
                  .replace('-', 'n'))
 
     task = ee.batch.Export.table.toDrive(
         collection=fc,
-        description=f"c13_{pixel_id}"[:100],
+        description=f"c13_c02_{pixel_id}"[:100],
         folder=DRIVE_FOLDER,
         fileNamePrefix=safe_name,
         fileFormat='CSV',
-        selectors=['datetime_utc', 'bt_c13_raw', 'pixel_id'],
+        selectors=['datetime_utc', 'bt_c13_raw', 'refl_c02_raw', 'pixel_id'],
     )
     task.start()
     task_list.append((pixel_id, task))
@@ -111,7 +130,7 @@ def export_pixel(pixel_id, lat, lon, task_list):
 if __name__ == "__main__":
 
     print("=" * 60)
-    print("  extract_c13_pixels.py — GOES-18 C13 GEE Extraction")
+    print("  extract_c13_c02_pixels.py — GOES-18 C13+C02 GEE Extraction")
     print("=" * 60)
 
     # ── 1. Authenticate ───────────────────────────────────────
@@ -149,15 +168,22 @@ NEXT STEPS:
      to monitor task progress  (each task ~5-15 min)
 
   2. When ALL tasks show 'COMPLETED':
-     Open Google Drive → goes18_c13_pixels/
+     Open Google Drive → goes18_c13_c02_pixels/
      Download all CSV files
 
   3. Place downloaded CSVs in:
-     data/raw/goes_c13/extracted_pixels/
+     data/raw/goes_c13_c02/extracted_pixels/
      Expected filenames:
-       goes18_c13_px_46p6141_n119p2086.csv
-       goes18_c13_px_46p6141_n119p1823.csv
+       goes18_c13_c02_px_46p6141_n119p2086.csv
+       goes18_c13_c02_px_46p6141_n119p1823.csv
        ... (one per pixel)
 
-  4. Run:  python src/c13_features.py
+  4. Sanity check before trusting refl_c02_raw in any downstream
+     feature: pick a day you already know well (e.g. the March 22
+     cloud-enhancement day) and confirm C02 reflectance rises with
+     known cloud cover and is null/near-zero at night.
+
+  5. Run:  python src/c13_features.py
+     (will need a small update to also load/normalize refl_c02_raw
+      — not yet wired in; this script only extracts the raw data)
 """)
