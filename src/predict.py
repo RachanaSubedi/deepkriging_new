@@ -57,7 +57,7 @@ def norm(arr, ref, scale):
 
 # ── COVARIATE BUILDER (vectorised over all PVs) ───────────────
 def build_cov_matrix(timestamps, bg_csi, bg_clearsky,
-                     c13_norm, c13_lag30, c13_diff,
+                     c13_norm, c02_norm,
                      met_arrays, elev_vec):
     """
     Build covariate matrix for M PV locations at T timesteps.
@@ -111,8 +111,7 @@ def build_cov_matrix(timestamps, bg_csi, bg_clearsky,
         cs_frac,
         norm(met_arrays['cos_zenith'],   *MET_NORM['cos_zenith']),
         c13_norm.astype(np.float32),
-        c13_lag30.astype(np.float32),
-        c13_diff.astype(np.float32),
+        c02_norm.astype(np.float32),
         norm(met_arrays['temperature'],  *MET_NORM['temperature']),
         norm(met_arrays['rh'],           *MET_NORM['rh']),
         norm(met_arrays['pressure'],     *MET_NORM['pressure']),
@@ -225,13 +224,12 @@ if __name__ == "__main__":
 
     # C13 features: MultiIndex → (T, M) per feature
     c13_norm_arr = c13_pvs.xs('bt_norm', axis=1, level=1)[pv_names].values
-    c13_lag30_arr = c13_pvs.xs('bt_lag30', axis=1, level=1)[pv_names].values
-    c13_diff_arr = c13_pvs.xs('bt_diff', axis=1, level=1)[pv_names].values
+    c02_norm_arr = c13_pvs.xs('c02_norm', axis=1, level=1)[pv_names].values
 
     # Build (T, M, 15) covariate tensor
     cov_all = build_cov_matrix(
         common, bg_arr, cs_arr,
-        c13_norm_arr, c13_lag30_arr, c13_diff_arr,
+        c13_norm_arr, c02_norm_arr,
         met_arr, elev_pvs,
     )
 

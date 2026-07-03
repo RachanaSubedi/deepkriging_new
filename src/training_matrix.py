@@ -114,16 +114,15 @@ def build_covariates(timestamps, bg_csi_s, bg_clearsky_s,
         cs_frac,                                                 # 4
         norm(met_s['cos_zenith'], *MET_NORM['cos_zenith']),      # 5
         c13_s['bt_norm'].values.astype(np.float32),  # 6
-        c13_s['bt_lag30'].values.astype(np.float32),  # 7
-        c13_s['bt_diff'].values.astype(np.float32),  # 8
-        norm(met_s['temperature'], *MET_NORM['temperature']),    # 10
-        norm(met_s['rh'],          *MET_NORM['rh']),             # 12
-        norm(met_s['pressure'],    *MET_NORM['pressure']),       # 12
-        norm(met_s['pw'],          *MET_NORM['pw']),             # 13
-        norm(met_s['cloud_type'],  *MET_NORM['cloud_type']),     # 14
-        norm(elev_arr,             *MET_NORM['elevation']),      # 15
-        doy_sin,                                                 # 16
-        doy_cos,                                                 # 17
+        c13_s['c02_norm'].values.astype(np.float32),  # 7
+        norm(met_s['temperature'], *MET_NORM['temperature']),    # 8
+        norm(met_s['rh'],          *MET_NORM['rh']),             # 9
+        norm(met_s['pressure'],    *MET_NORM['pressure']),       # 10
+        norm(met_s['pw'],          *MET_NORM['pw']),             # 11
+        norm(met_s['cloud_type'],  *MET_NORM['cloud_type']),     # 12
+        norm(elev_arr,             *MET_NORM['elevation']),      # 13
+        doy_sin,                                                 # 14
+        doy_cos,                                                 # 15
         hour_sin,
         hour_cos,
 
@@ -132,7 +131,7 @@ def build_covariates(timestamps, bg_csi_s, bg_clearsky_s,
     names = [
         'bg_csi', 'bg_csi_lag30', 'bg_csi_diff',
         'clearsky_frac', 'cos_zenith',
-        'bt_norm', 'bt_lag30', 'bt_diff',
+        'bt_norm', 'c02_norm',
         'temperature', 'rh', 'pressure', 'pw',
         'cloud_type', 'elevation',
         'doy_sin', 'doy_cos', 'hour_sin', 'hour_cos',
@@ -209,8 +208,8 @@ if __name__ == "__main__":
         else:
             print(f"    ⚠ C13 missing for {s_name} — using zeros")
             c13_s = pd.DataFrame(
-                np.zeros((T_day, 4)), index=ts,
-                columns=['bt_norm', 'bt_lag30', 'bt_diff'])
+                np.zeros((T_day, 2)), index=ts,
+                columns=['bt_norm', 'c02_norm'])
 
         # Met arrays for this station (daytime only)
         met_s = {k: met_data[k].loc[ts, s_name].values.astype(np.float32)
