@@ -229,7 +229,7 @@ if __name__ == '__main__':
     p2['dt'] = pd.to_datetime(p2['datetime']).dt.tz_localize(LOCAL_TZ, nonexistent='shift_forward', ambiguous='NaT')
     p2 = p2.set_index('dt')['GHI_imputed']
     p2 = p2[~p2.index.duplicated(keep='first')]
-    p2 = p2.reindex(master).ffill(limit=2)
+    p2 = p2.reindex(master).ffill(limit=12).bfill(limit=12)
     p2.name = 'P2'
     print(f"  P2: {p2.notna().sum()} valid, {p2.isna().sum()} null")
 

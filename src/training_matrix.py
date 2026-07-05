@@ -52,13 +52,11 @@ CLEARSKY_NORM = 1000.0   # W/m²  normalise clearsky GHI
 
 # Normalisation reference values for met variables
 MET_NORM = {
-    'temperature' : (15.0,  20.0),   # (ref, scale)  °C
-    'rh'          : (70.0,  30.0),   # %
-    'pressure'    : (990.0, 20.0),   # mbar
-    'pw'          : (1.0,   1.0),    # cm
-    'cos_zenith'  : (0.0,   1.0),    # already [-1,1]
-    'cloud_type'  : (6.0,   6.0),    # 0-12 → centred
-    'elevation'   : (300.0, 100.0),  # m
+    'temperature' : (15.0,  20.0),
+    'rh'          : (70.0,  30.0),
+    'pressure'    : (990.0, 20.0),
+    'cos_zenith'  : (0.0,   1.0),
+    'elevation'   : (300.0, 100.0),
 }
 
 
@@ -117,10 +115,8 @@ def build_covariates(timestamps, bg_csi_s, bg_clearsky_s,
         c13_s['c02_norm'].values.astype(np.float32),  # 7
         norm(met_s['temperature'], *MET_NORM['temperature']),    # 8
         norm(met_s['rh'],          *MET_NORM['rh']),             # 9
-        norm(met_s['pressure'],    *MET_NORM['pressure']),       # 10
-        norm(met_s['pw'],          *MET_NORM['pw']),             # 11
-        norm(met_s['cloud_type'],  *MET_NORM['cloud_type']),     # 12
-        norm(elev_arr,             *MET_NORM['elevation']),      # 13
+        norm(met_s['pressure'], *MET_NORM['pressure']),  # 10
+        norm(elev_arr, *MET_NORM['elevation']),  # 11
         doy_sin,                                                 # 14
         doy_cos,                                                 # 15
         hour_sin,
@@ -132,8 +128,8 @@ def build_covariates(timestamps, bg_csi_s, bg_clearsky_s,
         'bg_csi', 'bg_csi_lag30', 'bg_csi_diff',
         'clearsky_frac', 'cos_zenith',
         'bt_norm', 'c02_norm',
-        'temperature', 'rh', 'pressure', 'pw',
-        'cloud_type', 'elevation',
+        'temperature', 'rh', 'pressure',
+        'elevation',
         'doy_sin', 'doy_cos', 'hour_sin', 'hour_cos',
     ]
     return cov, names
@@ -153,13 +149,12 @@ if __name__ == "__main__":
 
     Phi_st    = np.load(BASIS_DIR / "Phi_stations_scaled.npy")   # (4, K)
     bg_csi    = pd.read_parquet(BG_DIR / "bg_csi_stations.parquet")
-    bg_clear  = pd.read_parquet(BG_DIR / "clearsky_pvlib_stations.parquet")
+    bg_clear  = pd.read_parquet(BG_DIR / "bg_clearsky_stations.parquet")
     csi_meas = pd.read_parquet(RESID_DIR / "csi_stations.parquet")
     c13_feats = pd.read_parquet(C13_FEAT_DIR / "c13_feat_stations.parquet")
 
     # Met variables
-    met_keys  = ['temperature', 'rh', 'pressure', 'pw',
-                 'cos_zenith', 'cloud_type']
+    met_keys  = ['temperature', 'rh', 'pressure', 'cos_zenith']
     met_data  = {k: pd.read_parquet(BG_DIR / f"met_{k}_stations.parquet")
                  for k in met_keys}
 

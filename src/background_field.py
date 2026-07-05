@@ -40,15 +40,13 @@ CSI_CLIP_MAX        = 2.0
 
 # Met variables to extract (continuous → IDW, categorical → nearest-neighbour)
 MET_CONTINUOUS = ['Temperature', 'Relative Humidity', 'Pressure',
-                  'Precipitable Water', 'Solar Zenith Angle']
-MET_CATEGORICAL = ['Cloud Type']   # nearest-neighbour only
+                  'Solar Zenith Angle']
+MET_CATEGORICAL = []   # nearest-neighbour only
 MET_KEYS = {
     'Temperature'       : 'temperature',
     'Relative Humidity' : 'rh',
     'Pressure'          : 'pressure',
-    'Precipitable Water': 'pw',
     'Solar Zenith Angle': 'cos_zenith',   # stored as cos(SZA)
-    'Cloud Type'        : 'cloud_type',
 }
 
 
@@ -112,8 +110,8 @@ def load_nsrdb(nsrdb_dir):
                 'minute': df['Minute'].astype(int),
             })
             timestamps = pd.DatetimeIndex(
-                dt_local.dt.tz_localize('Etc/GMT+8')
-                         .dt.tz_convert(LOCAL_TZ)
+                dt_local.dt.tz_localize('UTC')
+                .dt.tz_convert(LOCAL_TZ)
             )
 
         ghi_list.append(df['GHI'].values.astype(np.float32))

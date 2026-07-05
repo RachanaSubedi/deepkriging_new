@@ -33,7 +33,7 @@ from configs.config import (
 )
 
 # ── CONSTANTS ────────────────────────────────────────────────
-STATION_FILE      = STATION_DIR / "all_stations_GHI_30min_PST_filled.csv"
+STATION_FILE = STATION_DIR / "all_stations_GHI_5min_PST.csv"
 CLEARSKY_MIN_W_M2 = 10.0     # below this → nighttime → CSI = 0
 CSI_CLIP_MAX      = 2.0      # cloud-enhancement cap
 
@@ -53,10 +53,8 @@ def load_station_ghi(filepath):
     df = pd.read_csv(filepath, sep=None, engine='python', encoding='utf-8-sig')
 
     # Parse datetime — PST fixed offset (UTC-8), no DST shifts in data
-    df['datetime'] = pd.to_datetime(df['datetime'], format='mixed')
+    df['datetime'] = pd.to_datetime(df['datetime'], utc=True).dt.tz_convert('America/Los_Angeles')
     df = df.set_index('datetime')
-    df.index = df.index.tz_localize('Etc/GMT+8')          # PST = UTC-8
-    df.index = df.index.tz_convert('America/Los_Angeles')  # match background
     df.index.name = 'datetime_local'
 
     # Rename columns to match station keys: GHI_S1 → S1
@@ -128,7 +126,7 @@ if __name__ == "__main__":
     # ── 2. Load background fields ────────────────────────────
     print("\n[2/4] Loading background fields...")
     bg_csi      = pd.read_parquet(BG_DIR / "bg_csi_stations.parquet")
-    bg_clearsky = pd.read_parquet(BG_DIR / "clearsky_pvlib_stations.parquet")
+    bg_clearsky = pd.read_parquet(BG_DIR / "bg_clearsky_stations.parquet")
     print(f"  bg_csi      : {bg_csi.shape}   "
           f"range [{bg_csi.values.min():.3f}, {bg_csi.values.max():.3f}]")
     print(f"  bg_clearsky : {bg_clearsky.shape}   "
@@ -143,8 +141,24 @@ if __name__ == "__main__":
     # ── 4. Compute CSI and residuals ─────────────────────────
     print("\n[4/4] Computing CSI and residuals...")
 
-    csi_df     = measured_csi(ghi_aligned, cs_aligned)
-    resid_df   = csi_df - bg_aligned.values   # element-wise
+    csi_df = measured_csi(ghi_aligned, cs_aligned)
+
+    # Bias-correct background CSI — NSRDB systematically overestimates
+    # clear-sky in this region. Subtract the mean daytime bias per station
+    # so the model learns spatial variation, not a systematic offset.
+    station_names = list(STATIONS.keys())
+    # Bias-correct background CSI
+    day_mask = cs_aligned.values >= CLEARSKY_MIN_W_M2
+    bias = np.where(day_mask, csi_df.values - bg_aligned.values, np.nan)
+    bias_mean = np.nanmean(bias, axis=0)  # (4,) one per station
+    print(f"\n  Bias correction per station (mean residual):")
+    for i, s in enumerate(station_names):
+        print(f"    {s}: {bias_mean[i]:.4f}")
+    bg_corrected = pd.DataFrame(
+        bg_aligned.values + bias_mean,
+        index=bg_aligned.index, columns=bg_aligned.columns
+    ).clip(0, 1)
+    resid_df = csi_df - bg_corrected.values
 
     RESID_DIR.mkdir(parents=True, exist_ok=True)
     csi_df.to_parquet(RESID_DIR   / "csi_stations.parquet")

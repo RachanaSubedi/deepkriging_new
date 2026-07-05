@@ -43,12 +43,10 @@ MET_NORM = {
     'temperature' : (15.0,  20.0),
     'rh'          : (70.0,  30.0),
     'pressure'    : (990.0, 20.0),
-    'pw'          : (1.0,   1.0),
     'cos_zenith'  : (0.0,   1.0),
-    'cloud_type'  : (6.0,   6.0),
     'elevation'   : (300.0, 100.0),
 }
-MET_KEYS = ['temperature', 'rh', 'pressure', 'pw', 'cos_zenith', 'cloud_type']
+MET_KEYS = ['temperature', 'rh', 'pressure', 'cos_zenith']
 
 
 def norm(arr, ref, scale):
@@ -114,10 +112,8 @@ def build_cov_matrix(timestamps, bg_csi, bg_clearsky,
         c02_norm.astype(np.float32),
         norm(met_arrays['temperature'],  *MET_NORM['temperature']),
         norm(met_arrays['rh'],           *MET_NORM['rh']),
-        norm(met_arrays['pressure'],     *MET_NORM['pressure']),
-        norm(met_arrays['pw'],           *MET_NORM['pw']),
-        norm(met_arrays['cloud_type'],   *MET_NORM['cloud_type']),
-        norm(elev,                       *MET_NORM['elevation']),
+        norm(met_arrays['pressure'], *MET_NORM['pressure']),
+        norm(elev, *MET_NORM['elevation']),
         doy_sin,
         doy_cos,
         hour_sin,
@@ -147,7 +143,7 @@ if __name__ == "__main__":
     print(f"\n[1/5] Loading {N_FOLDS} LOSO models...")
     models, scalers = [], []
     for k in range(N_FOLDS):
-        m = DeepKriging(N_BASIS + 18, HIDDEN_SIZE, DROPOUT).to(DEVICE)
+        m = DeepKriging(N_BASIS + 15, HIDDEN_SIZE, DROPOUT).to(DEVICE)
         m.load_state_dict(
             torch.load(MODEL_DIR / f"fold_{k}_best.pt",
                        map_location=DEVICE))
@@ -184,7 +180,7 @@ if __name__ == "__main__":
 
     # Background fields
     bg_csi_pvs   = pd.read_parquet(BG_DIR / "bg_csi_pvs.parquet")
-    bg_clear_pvs = pd.read_parquet(BG_DIR / "clearsky_pvlib_pvs.parquet")
+    bg_clear_pvs = pd.read_parquet(BG_DIR / "bg_clearsky_pvs.parquet")
 
     # Met variables
     met_pvs = {k: pd.read_parquet(BG_DIR / f"met_{k}_pvs.parquet")

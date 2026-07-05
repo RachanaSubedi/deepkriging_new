@@ -23,24 +23,26 @@ sys.path.append(str(Path(__file__).parent.parent))
 from configs.config import FIG_DIR, STATIONS
 
 # ── Which date to plot — change this, nothing else needs editing ──
-TARGET_DATE = "2024-03-22"
+TARGET_DATE = "2024-4-23"
 
 # ── PATHS ─────────────────────────────────────────────────────
 # Real model output (full covariates, quantile-corrected). NOT the
 # _nocov ablation — that lives in a separate predictions_nocov/ dir
 # and should be plotted with a separate script call if ever needed.
-PRED_CSV    = Path(__file__).parent.parent / "outputs" / "predictions" / "ghi_pvs_corrected.csv"
+PRED_CSV = Path(__file__).parent.parent / "outputs" / "predictions" / "ghi_pvs.parquet"
 PV_CSV      = Path(__file__).parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
 STATION_CSV = (Path(__file__).parent.parent / "data" / "raw" / "stations"
-               / "all_stations_GHI_30min_PST_filled.csv")
+               / "all_stations_GHI_5min_PST.csv")
 
 STATION_COLORS = {'S1': '#e63946', 'S2': '#2a9d8f',
                   'S3': '#e76f51', 'P2': '#264653'}
 
 # ── LOAD ─────────────────────────────────────────────────────
 print("Loading predictions...")
-ghi_all = pd.read_csv(PRED_CSV, index_col='datetime', parse_dates=True)
-ghi_all.index = pd.to_datetime(ghi_all.index, format='%m/%d/%Y %H:%M')
+ghi_all = pd.read_parquet(PRED_CSV)
+# parquet index is already tz-aware — strip to naive local for plotting
+ghi_all.index = ghi_all.index.tz_localize(None) if ghi_all.index.tz is None \
+    else ghi_all.index.tz_convert('America/Los_Angeles').tz_localize(None)
 
 pv_df    = pd.read_csv(PV_CSV)
 pv_names = pv_df['pv_name'].tolist()
@@ -50,10 +52,9 @@ lons_map = pv_df.set_index('pv_name')['pv_lon']
 try:
     st = pd.read_csv(STATION_CSV, sep=None, engine='python',
                      encoding='utf-8-sig', index_col=0, parse_dates=True)
-    st.index = (pd.to_datetime(st.index)
-                .tz_localize('Etc/GMT+8')  # label as PST
-                .tz_convert('America/Los_Angeles')  # convert to PDT
-                .tz_localize(None))  # strip tz → naive PDT, matches ghi_all
+    st.index = (pd.to_datetime(st.index, utc=True)
+                .tz_convert('America/Los_Angeles')
+                .tz_localize(None))
     st.columns = [c.replace('GHI_', '') for c in st.columns]
     have_stations = True
     print("  Station data loaded")

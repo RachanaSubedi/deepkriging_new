@@ -65,7 +65,7 @@ GEE_DATASET    = "NOAA/GOES/18/MCMIPC"
 # ── MODEL ─────────────────────────────────────────────────────
 N_COVARIATES   = 18
 HIDDEN_SIZE    = 100
-DROPOUT        = 0.5
+DROPOUT        = 0.3
 WEIGHT_DECAY   = 1e-4
 LEARNING_RATE  = 1e-3
 BATCH_SIZE     = 512

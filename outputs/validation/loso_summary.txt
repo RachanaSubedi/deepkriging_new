@@ -1,12 +1,12 @@
 DeepKriging LOSO Cross-Validation Results
 ==================================================
- fold test_station  n_train  n_test  rmse_csi_raw  r2_csi_raw  rmse_ghi   r2_ghi  epochs_run
-    0           S1    27780    8279      1.719940  -42.183067 95.400047 0.832490          43
-    1           S2    27811    8271      0.172215    0.564059 77.995092 0.892874          36
-    2           S3    27295    8271      0.205242    0.405354 82.622661 0.886235         104
-    3           P2    29497    8271      0.665327   -8.648026 62.198009 0.918877          45
+ fold test_station  n_train  n_test  rmse_csi_raw  r2_csi_raw   rmse_ghi   r2_ghi  epochs_run
+    0           S1   151056   52050      0.204424    0.283500 103.408693 0.805892          32
+    1           S2   151630   52142      0.165673    0.565309  85.489208 0.878654          56
+    2           S3   152200   52157      0.164347    0.539610  79.234198 0.890248          32
+    3           P2   154936   52150      0.128190    0.681000  64.025987 0.920526          70
 
-Mean RMSE (CSI residual) : 0.6907
-Mean R²   (CSI residual) : -12.4654
-Mean RMSE (GHI W/m²)     : 79.55
-Mean R²   (GHI)          : 0.8826
+Mean RMSE (CSI residual) : 0.1657
+Mean R²   (CSI residual) : 0.5174
+Mean RMSE (GHI W/m²)     : 83.04
+Mean R²   (GHI)          : 0.8738

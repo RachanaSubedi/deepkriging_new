@@ -54,7 +54,7 @@ from src.model import DeepKriging, count_parameters
 
 # ── HYPERPARAMETERS ───────────────────────────────────────────
 HUBER_DELTA      = 0.1
-EARLY_STOP_PAT   = 20
+EARLY_STOP_PAT   = 30
 VAL_FRACTION     = 0.20
 CLEARSKY_MIN     = 10.0
 
@@ -77,7 +77,7 @@ def rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 
 def standardise(X_train, X_val, X_test, n_basis=411):
     """
-    Standardize ONLY the covariate columns (last 15).
+    Standardize ONLY the covariate columns (last 13).
     Leave the 411 basis function columns unchanged — they are
     already in [0,1] from Phi_stations_scaled.npy.
     """
@@ -314,7 +314,7 @@ if __name__ == "__main__":
 
     print("\n  Loading background CSI and clearsky for GHI eval...")
     bg_csi   = pd.read_parquet(BG_DIR / "bg_csi_stations.parquet")
-    bg_clear = pd.read_parquet(BG_DIR / "clearsky_pvlib_stations.parquet")
+    bg_clear = pd.read_parquet(BG_DIR / "bg_clearsky_stations.parquet")
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     VAL_DIR.mkdir(parents=True,   exist_ok=True)
