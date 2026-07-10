@@ -35,7 +35,8 @@ from src.model import DeepKriging
 # ── CONSTANTS ─────────────────────────────────────────────────
 CLEARSKY_MIN  = 10.0     # W/m²  daytime threshold
 CLEARSKY_NORM = 1000.0
-N_BASIS       = 411
+# Derived at runtime from the saved basis matrix (changes if BASIS_LEVELS change)
+N_BASIS       = np.load(BASIS_DIR / "Phi_stations_scaled.npy").shape[1]
 N_FOLDS       = 4
 DEVICE        = torch.device('cpu')
 

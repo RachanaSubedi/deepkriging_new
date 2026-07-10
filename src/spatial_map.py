@@ -23,7 +23,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from configs.config import FIG_DIR, STATIONS
 
 # ── Which date to plot — change this, nothing else needs editing ──
-TARGET_DATE = "2024-4-23"
+TARGET_DATE = "2024-12-31"
 
 # ── PATHS ─────────────────────────────────────────────────────
 # Real model output (full covariates, quantile-corrected). NOT the

@@ -42,6 +42,10 @@ import matplotlib
 matplotlib.use('Agg')   # non-interactive backend — no popup window
 import matplotlib.pyplot as plt
 
+SEED = 42
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+
 sys.path.append(str(Path(__file__).parent.parent))
 
 from configs.config import (

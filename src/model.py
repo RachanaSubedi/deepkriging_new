@@ -33,18 +33,19 @@ class DeepKriging(nn.Module):
         self.net = nn.Sequential(
             # ── Hidden layer 1 ───────────────────────────────
             nn.Linear(input_dim, hidden_size),
+            nn.LayerNorm(hidden_size),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.BatchNorm1d(hidden_size),
 
             # ── Hidden layer 2 ───────────────────────────────
             nn.Linear(hidden_size, hidden_size),
+            nn.LayerNorm(hidden_size),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.BatchNorm1d(hidden_size),
 
             # ── Hidden layer 3 ───────────────────────────────
             nn.Linear(hidden_size, hidden_size),
+            nn.LayerNorm(hidden_size),
             nn.ReLU(),
             nn.Dropout(dropout),
 

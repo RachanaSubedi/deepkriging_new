@@ -1,0 +1,14 @@
+IDW Baseline Summary
+=============================================
+IDW power p = 1.0  (weights = 1/distance^1)
+
+── LOSO validation (daytime GHI) ──
+     S1: RMSE= 91.92  MAE= 53.14  R2=0.8449
+     S2: RMSE= 74.25  MAE= 40.14  R2=0.9082
+     S3: RMSE= 74.34  MAE= 38.94  R2=0.9026
+     P2: RMSE= 42.15  MAE= 27.55  R2=0.9651
+   Mean: RMSE= 70.66  MAE= 39.94  R2=0.9052
+
+── Spatial diversity at 178 PVs ──
+  Distinct values / timestep : 29.4 / 178
+  Per-PV mean spread         : 4.32 W/m²
