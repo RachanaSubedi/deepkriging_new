@@ -50,11 +50,20 @@ class DeepKriging(nn.Module):
             nn.Dropout(dropout),
 
             # ── Output ────────────────────────────────────────
-            nn.Linear(hidden_size, 1),
+            # 3 quantiles (10th, 50th, 90th) instead of 1 point estimate.
+            # A point estimate trained on MSE/Huber mathematically converges
+            # to the conditional mean — smooth by construction, which is why
+            # DeepKriging misses real GHI ramps/spikes even though the GOES
+            # cloud features carry genuine 5-min variability (confirmed:
+            # <3% of C13 steps are stale-repeated). Quantiles let predict.py
+            # sample a plausible ramp path within a calibrated uncertainty
+            # band instead of always outputting the mean.
+            nn.Linear(hidden_size, 3),
         )
+        self.quantiles = [0.1, 0.5, 0.9]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(x).squeeze(-1)
+        return self.net(x)  # (batch, 3) — q10, q50, q90, NOT squeezed
 
 
 def count_parameters(model: nn.Module) -> int:

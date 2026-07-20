@@ -54,9 +54,13 @@ TARGET_FILES = {
     'idw': OUTPUT_DIR / "idw" / "ghi_pvs_idw.parquet",
 }
 
-HOLDOUT_DATE   = "2024-12-31"  # matches the paper's day-ahead validation exactly
-HOLDOUT_HOUR_MIN = 5           # paper's val_start_hour
-HOLDOUT_HOUR_MAX = 22          # paper's val_end_hour
+# Last N calendar days held out for validation, all other days used for
+# training. Switched from the paper's single-day (Dec 31) protocol because
+# our NSRDB source was downloaded in UTC — the local-time year therefore
+# truncates ~8 hours early on Dec 31 (UTC year-end = Dec 31 16:00 PST),
+# cutting the last day's afternoon/evening short. A 5-day window absorbs
+# that truncation without losing validation power on the other 4 days.
+HOLDOUT_DAYS  = 5
 N_ESTIMATORS  = 100     # matches the paper exactly
 RANDOM_STATE  = 7       # matches the paper exactly
 
@@ -136,11 +140,10 @@ if __name__ == "__main__":
     print(f"  Common timesteps: {len(common)}")
     print(f"  PVs            : {len(pv_names)}")
 
+    holdout_start_date = (common.max() - pd.Timedelta(days=HOLDOUT_DAYS)).date()
     print(f"\n[2/5] Training {len(pv_names)} per-PV Random Forests "
-          f"(n_estimators={N_ESTIMATORS}, holdout={HOLDOUT_DATE} "
-          f"{HOLDOUT_HOUR_MIN}:00-{HOLDOUT_HOUR_MAX}:00)...")
-
-    holdout_date = pd.Timestamp(HOLDOUT_DATE).date()
+          f"(n_estimators={N_ESTIMATORS}, holdout=last {HOLDOUT_DAYS} days "
+          f"[{holdout_start_date} → {common.max().date()}])...")
 
     metrics_rows = []
     importance_rows = []
@@ -157,14 +160,13 @@ if __name__ == "__main__":
         day_mask = df['ghi_local'].notna() & df[feature_cols].notna().all(axis=1)
         df_day = df[day_mask]
 
-        # Paper's exact validation window: Dec 31, hours 5-22 local.
-        # Everything else (all other days, full 24h) is training data —
-        # matches the paper's "train on the other 364 days" setup.
+        # Last HOLDOUT_DAYS calendar days -> validation, everything else
+        # -> training. No fixed hour window (unlike the paper's single-day
+        # protocol) since DK/IDW targets are already NaN at night.
         idx = df_day.index
-        is_holdout_day  = (idx.date == holdout_date)
-        is_holdout_hour = (idx.hour >= HOLDOUT_HOUR_MIN) & (idx.hour <= HOLDOUT_HOUR_MAX)
-        val_mask   = is_holdout_day & is_holdout_hour
-        train_mask = ~is_holdout_day
+        val_mask = pd.Series(idx.date, index=idx) >= holdout_start_date
+        val_mask = val_mask.values
+        train_mask = ~val_mask
 
         X_train = df_day.loc[train_mask, feature_cols].values
         y_train = df_day.loc[train_mask, 'ghi_local'].values
@@ -231,8 +233,7 @@ if __name__ == "__main__":
     lines = [
         f"NNRF Downscaling Summary — target = {TARGET.upper()}",
         "=" * 50,
-        f"n_estimators = {N_ESTIMATORS}, holdout = {HOLDOUT_DATE} "
-        f"({HOLDOUT_HOUR_MIN}:00-{HOLDOUT_HOUR_MAX}:00), "
+        f"n_estimators = {N_ESTIMATORS}, holdout = last {HOLDOUT_DAYS} days, "
         f"k neighbors = 3",
         "",
         f"Mean validation metrics ({len(metrics_df)} PVs):",

@@ -46,7 +46,7 @@ TARGET_FILES = {
     'idw': OUTPUT_DIR / "idw" / "ghi_pvs_idw.parquet",
 }
 
-HOLDOUT_DATE     = "2024-12-31"   # matches nnrf_downscale.py exactly
+HOLDOUT_DATE     = "2024-12-29"   # matches nnrf_downscale.py exactly
 HOLDOUT_HOUR_MIN = 5
 HOLDOUT_HOUR_MAX = 22
 

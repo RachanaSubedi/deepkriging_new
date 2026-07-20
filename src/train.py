@@ -59,6 +59,7 @@ from src.model import DeepKriging, count_parameters
 # ── HYPERPARAMETERS ───────────────────────────────────────────
 HUBER_DELTA      = 0.1
 EARLY_STOP_PAT   = 30
+LAMBDA_VAR       = 0.5
 VAL_FRACTION     = 0.20
 CLEARSKY_MIN     = 10.0
 
@@ -132,11 +133,21 @@ def train_one_fold(fold_k, X_tr, y_tr, X_val, y_val):
     Train DeepKriging for one LOSO fold.
     Returns best model and epoch-by-epoch history list.
     """
-    model     = DeepKriging(X_tr.shape[1], HIDDEN_SIZE, DROPOUT).to(DEVICE)
+    model = DeepKriging(X_tr.shape[1], HIDDEN_SIZE, DROPOUT).to(DEVICE)
     optimizer = torch.optim.Adam(model.parameters(),
                                  lr=LEARNING_RATE,
                                  weight_decay=WEIGHT_DECAY)
-    criterion = nn.HuberLoss(delta=HUBER_DELTA)
+    quantiles = torch.tensor([0.1, 0.5, 0.9], device=DEVICE)
+
+    def pinball_loss(pred, true):
+        """
+        Quantile (pinball) loss for 3 quantiles at once.
+        pred: (batch, 3)   true: (batch,)
+        """
+        true = true.unsqueeze(1)  # (batch, 1)
+        errors = true - pred  # (batch, 3)
+        loss = torch.max((quantiles - 1) * errors, quantiles * errors)
+        return loss.mean()
 
     tr_loader  = make_loader(X_tr,  y_tr,  BATCH_SIZE, shuffle=True)
     val_loader = make_loader(X_val, y_val, BATCH_SIZE, shuffle=False)
@@ -151,10 +162,11 @@ def train_one_fold(fold_k, X_tr, y_tr, X_val, y_val):
         # ── Train ─────────────────────────────────────────────
         model.train()
         tr_loss = 0.0
+        tr_var_pen = 0.0
         for xb, yb in tr_loader:
             xb, yb = xb.to(DEVICE), yb.to(DEVICE)
             optimizer.zero_grad()
-            loss = criterion(model(xb), yb)
+            loss = pinball_loss(model(xb), yb)
             loss.backward()
             optimizer.step()
             tr_loss += loss.item() * len(yb)
@@ -163,11 +175,13 @@ def train_one_fold(fold_k, X_tr, y_tr, X_val, y_val):
         # ── Validate ──────────────────────────────────────────
         model.eval()
         val_loss = 0.0
+        val_var_pen = 0.0
         with torch.no_grad():
             for xb, yb in val_loader:
                 xb, yb = xb.to(DEVICE), yb.to(DEVICE)
-                val_loss += criterion(model(xb), yb).item() * len(yb)
-        val_loss /= len(y_val)
+                loss = pinball_loss(model(xb), yb)
+                val_loss += loss.item() * len(yb)
+            val_loss /= len(y_val)
 
         history.append({'epoch': epoch,
                         'train_loss': tr_loss,
@@ -185,6 +199,7 @@ def train_one_fold(fold_k, X_tr, y_tr, X_val, y_val):
         if epoch % 10 == 0 or epoch == 1:
             print(f"    epoch {epoch:>3d}  "
                   f"train={tr_loss:.5f}  val={val_loss:.5f}  "
+                  f"var_pen(tr/val)={tr_var_pen:.5f}/{val_var_pen:.5f}  "
                   f"patience={patience_count}/{EARLY_STOP_PAT}")
 
         if patience_count >= EARLY_STOP_PAT:
@@ -403,7 +418,10 @@ if __name__ == "__main__":
               f"best epoch={hist_df['val_loss'].idxmin()+1})")
 
         # Predict on test station
-        csi_pred_raw = predict(model, X_test_sc)
+        csi_pred_all = predict(model, X_test_sc)  # (N, 3): q10, q50, q90
+        csi_pred_raw = csi_pred_all[:, 1]  # median, for existing metrics
+        csi_pred_q10 = csi_pred_all[:, 0]
+        csi_pred_q90 = csi_pred_all[:, 2]
         csi_true = y_test
 
         rmse_csi_raw = rmse(csi_true, csi_pred_raw)
@@ -458,6 +476,8 @@ if __name__ == "__main__":
             'ghi_true': ghi_true,
             'ghi_pred': ghi_pred,
             'bg_clearsky': bg_clear_s,
+            'csi_pred_q10': csi_pred_q10,
+            'csi_pred_q90': csi_pred_q90,
         })
 
         pred_df.to_csv(VAL_DIR / f"fold_{k}_{test_station}_predictions.csv",

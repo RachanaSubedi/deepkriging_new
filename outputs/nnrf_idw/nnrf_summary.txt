@@ -1,19 +1,19 @@
 NNRF Downscaling Summary — target = IDW
 ==================================================
-n_estimators = 100, holdout = 2024-12-31 (5:00-22:00), k neighbors = 3
+n_estimators = 100, holdout = last 5 days, k neighbors = 3
 
 Mean validation metrics (178 PVs):
-  RMSE = 14.25 W/m2
-  MAE  = 10.76 W/m2
-  R2   = 0.7435
-  GoF  = 84.87%
+  RMSE = 22.82 W/m2
+  MAE  = 17.07 W/m2
+  R2   = 0.7161
+  GoF  = 86.59%
 
 Mean feature importance:
-  ghi_neighbor_2       0.2471
-  ghi_neighbor_1       0.2447
-  ghi_neighbor_3       0.2341
-  ghi_global           0.2031
-  hour_sin             0.0151
+  ghi_neighbor_2       0.2467
+  ghi_neighbor_1       0.2444
+  ghi_neighbor_3       0.2338
+  ghi_global           0.2038
+  hour_sin             0.0152
   temperature          0.0105
   doy_cos              0.0104
   hour_cos             0.0099
