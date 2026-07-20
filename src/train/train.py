@@ -59,7 +59,6 @@ from src.model import DeepKriging, count_parameters
 # ── HYPERPARAMETERS ───────────────────────────────────────────
 HUBER_DELTA      = 0.1
 EARLY_STOP_PAT   = 30
-LAMBDA_VAR       = 0.5
 VAL_FRACTION     = 0.20
 CLEARSKY_MIN     = 10.0
 
@@ -133,21 +132,11 @@ def train_one_fold(fold_k, X_tr, y_tr, X_val, y_val):
     Train DeepKriging for one LOSO fold.
     Returns best model and epoch-by-epoch history list.
     """
-    model = DeepKriging(X_tr.shape[1], HIDDEN_SIZE, DROPOUT).to(DEVICE)
+    model     = DeepKriging(X_tr.shape[1], HIDDEN_SIZE, DROPOUT).to(DEVICE)
     optimizer = torch.optim.Adam(model.parameters(),
                                  lr=LEARNING_RATE,
                                  weight_decay=WEIGHT_DECAY)
-    quantiles = torch.tensor([0.1, 0.5, 0.9], device=DEVICE)
-
-    def pinball_loss(pred, true):
-        """
-        Quantile (pinball) loss for 3 quantiles at once.
-        pred: (batch, 3)   true: (batch,)
-        """
-        true = true.unsqueeze(1)  # (batch, 1)
-        errors = true - pred  # (batch, 3)
-        loss = torch.max((quantiles - 1) * errors, quantiles * errors)
-        return loss.mean()
+    criterion = nn.HuberLoss(delta=HUBER_DELTA)
 
     tr_loader  = make_loader(X_tr,  y_tr,  BATCH_SIZE, shuffle=True)
     val_loader = make_loader(X_val, y_val, BATCH_SIZE, shuffle=False)
@@ -162,11 +151,10 @@ def train_one_fold(fold_k, X_tr, y_tr, X_val, y_val):
         # ── Train ─────────────────────────────────────────────
         model.train()
         tr_loss = 0.0
-        tr_var_pen = 0.0
         for xb, yb in tr_loader:
             xb, yb = xb.to(DEVICE), yb.to(DEVICE)
             optimizer.zero_grad()
-            loss = pinball_loss(model(xb), yb)
+            loss = criterion(model(xb), yb)
             loss.backward()
             optimizer.step()
             tr_loss += loss.item() * len(yb)
@@ -175,13 +163,11 @@ def train_one_fold(fold_k, X_tr, y_tr, X_val, y_val):
         # ── Validate ──────────────────────────────────────────
         model.eval()
         val_loss = 0.0
-        val_var_pen = 0.0
         with torch.no_grad():
             for xb, yb in val_loader:
                 xb, yb = xb.to(DEVICE), yb.to(DEVICE)
-                loss = pinball_loss(model(xb), yb)
-                val_loss += loss.item() * len(yb)
-            val_loss /= len(y_val)
+                val_loss += criterion(model(xb), yb).item() * len(yb)
+        val_loss /= len(y_val)
 
         history.append({'epoch': epoch,
                         'train_loss': tr_loss,
@@ -199,7 +185,6 @@ def train_one_fold(fold_k, X_tr, y_tr, X_val, y_val):
         if epoch % 10 == 0 or epoch == 1:
             print(f"    epoch {epoch:>3d}  "
                   f"train={tr_loss:.5f}  val={val_loss:.5f}  "
-                  f"var_pen(tr/val)={tr_var_pen:.5f}/{val_var_pen:.5f}  "
                   f"patience={patience_count}/{EARLY_STOP_PAT}")
 
         if patience_count >= EARLY_STOP_PAT:
@@ -224,57 +209,11 @@ def predict(model, X):
 
 def plot_loss_curves(val_dir, fig_dir, station_names):
     """
-    Reads fold_*_history.csv files saved during training and
-    generates two figures:
-      fig_loss_curves.png   — 4-panel, one per fold
-      fig_loss_combined.png — all folds overlaid
+    Reads fold_*_history.csv files saved during training and generates
+    fig_loss_combined.png — training/validation loss for all 4 folds
+    overlaid, with each fold's best epoch marked.
     """
-    fig, axes = plt.subplots(2, 2, figsize=(13, 9))
-    fig.suptitle('DeepKriging — Training & Validation Loss per Fold',
-                 fontsize=13, fontweight='bold')
-
-    for ax, (k, station) in zip(axes.flat, enumerate(station_names)):
-        hist     = pd.read_csv(val_dir / f"fold_{k}_history.csv")
-        color    = FOLD_COLORS[station]
-        best_idx = hist['val_loss'].idxmin()
-        best_ep  = int(hist.loc[best_idx, 'epoch'])
-        best_val = hist.loc[best_idx, 'val_loss']
-        best_tr  = hist.loc[best_idx, 'train_loss']
-
-        ax.plot(hist['epoch'], hist['train_loss'],
-                color=color, lw=1.8, label='Train loss')
-        ax.plot(hist['epoch'], hist['val_loss'],
-                color=color, lw=1.8, ls='--', label='Val loss')
-
-        # Mark best epoch
-        ax.axvline(best_ep, color='black', lw=1.0, ls=':', alpha=0.5)
-        ax.scatter([best_ep], [best_val], color='black', s=60, zorder=5)
-        ax.annotate(f"best val={best_val:.5f}\nepoch {best_ep}",
-                    (best_ep, best_val), xytext=(6, 4),
-                    textcoords='offset points', fontsize=7.5)
-
-        # Stats box
-        gap = best_tr - best_val
-        ax.text(0.98, 0.96,
-                f"Train={best_tr:.5f}\nVal  ={best_val:.5f}\nGap ={gap:+.5f}",
-                transform=ax.transAxes, fontsize=7.5,
-                ha='right', va='top',
-                bbox=dict(boxstyle='round,pad=0.3', fc='white', alpha=0.85))
-
-        ax.set_title(f"Fold {k} — hold out {station}  "
-                     f"({len(hist)} epochs)",
-                     fontsize=10, fontweight='bold', color=color)
-        ax.set_xlabel('Epoch')
-        ax.set_ylabel('Huber Loss')
-        ax.legend(fontsize=8)
-        ax.grid(alpha=0.25)
-
-    plt.tight_layout()
     fig_dir.mkdir(parents=True, exist_ok=True)
-    out1 = fig_dir / "fig_loss_curves.png"
-    plt.savefig(out1, dpi=160, bbox_inches='tight')
-    plt.close()
-    print(f"  ✓ {out1.name}")
 
     # ── Combined: all folds overlaid ─────────────────────────
     fig, (ax_tr, ax_val) = plt.subplots(1, 2, figsize=(13, 5))
@@ -418,10 +357,7 @@ if __name__ == "__main__":
               f"best epoch={hist_df['val_loss'].idxmin()+1})")
 
         # Predict on test station
-        csi_pred_all = predict(model, X_test_sc)  # (N, 3): q10, q50, q90
-        csi_pred_raw = csi_pred_all[:, 1]  # median, for existing metrics
-        csi_pred_q10 = csi_pred_all[:, 0]
-        csi_pred_q90 = csi_pred_all[:, 2]
+        csi_pred_raw = predict(model, X_test_sc)
         csi_true = y_test
 
         rmse_csi_raw = rmse(csi_true, csi_pred_raw)
@@ -454,9 +390,7 @@ if __name__ == "__main__":
         r2_ghi   = r2_score(ghi_true[day], ghi_pred[day])
 
         print(f"\n  ── Test Results ({test_station}) ──────────────────")
-        print(f"  CSI (raw out) RMSE={rmse_csi_raw:.4f}  R²={r2_csi_raw:.4f}  "
-              f"← unclipped model output vs measured CSI")
-        print(f"  CSI (clipped) RMSE={rmse(csi_true[day], csi_pred[day]):.4f}  "
+        print(f"  CSI RMSE={rmse(csi_true[day], csi_pred[day]):.4f}  "
               f"R²={r2_score(csi_true[day], csi_pred[day]):.4f}")
         print(f"  GHI (W/m²)    RMSE={rmse_ghi:.2f}    R²={r2_ghi:.4f}")
 
@@ -476,8 +410,6 @@ if __name__ == "__main__":
             'ghi_true': ghi_true,
             'ghi_pred': ghi_pred,
             'bg_clearsky': bg_clear_s,
-            'csi_pred_q10': csi_pred_q10,
-            'csi_pred_q90': csi_pred_q90,
         })
 
         pred_df.to_csv(VAL_DIR / f"fold_{k}_{test_station}_predictions.csv",
@@ -497,22 +429,11 @@ if __name__ == "__main__":
 
     # ── Summary ───────────────────────────────────────────────
     print(f"\n[3/3] LOSO Summary")
-    print(f"{'─'*60}")
-    print(f"{'Fold':<6} {'Station':<8} {'RMSE_CSI':>10} {'R²_CSI':>8} "
-          f"{'RMSE_GHI':>10} {'R²_GHI':>8}")
-    print(f"{'─'*60}")
-
     results_df = pd.DataFrame(fold_results)
-    for _, row in results_df.iterrows():
-        print(f"  {int(row.fold):<4} {row.test_station:<8} "
-              f"{row.rmse_csi_raw:>10.4f} {row.r2_csi_raw:>8.4f} "
-              f"{row.rmse_ghi:>10.2f} {row.r2_ghi:>8.4f}")
-    print(f"{'─'*60}")
-    print(f"  {'Mean':<12} "
-          f"{results_df.rmse_csi_raw.mean():>10.4f} "
-          f"{results_df.r2_csi_raw.mean():>8.4f} "
-          f"{results_df.rmse_ghi.mean():>10.2f} "
-          f"{results_df.r2_ghi.mean():>8.4f}")
+    print(results_df[['fold', 'test_station', 'rmse_csi_raw', 'r2_csi_raw',
+                       'rmse_ghi', 'r2_ghi']].round(4).to_string(index=False))
+    print(f"Mean RMSE_GHI={results_df.rmse_ghi.mean():.2f}  "
+          f"Mean R2_GHI={results_df.r2_ghi.mean():.4f}")
 
     summary_lines = [
         "DeepKriging LOSO Cross-Validation Results", "=" * 50,
