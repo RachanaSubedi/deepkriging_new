@@ -1,15 +1,18 @@
 """
 src/pixel_mapping.py
 
-Snaps every PV location and station to its nearest GOES-18 pixel center.
-Saves two lookup tables that everything downstream uses:
-
-  data/processed/
-    pv_pixel_map.csv      one row per PV  (178 rows)
-    goes_pixel_list.csv   one row per unique pixel (expect ~33)
+Snaps every PV location and station to its nearest GOES-18 pixel center,
+then expands to include each pixel's 4 cardinal neighbors (N/S/E/W) —
+needed for spatial-gradient features downstream, not just the containing
+pixel.
 
 Run:
-    python src/pixel_mapping.py
+    python src/data_prep/pixel_mapping.py
+
+Outputs (data/processed/):
+    pv_pixel_map.csv      one row per PV, its assigned pixel (178 rows)
+    goes_pixel_list.csv   one row per unique pixel, assigned + neighbors
+    pv_neighbor_map.csv   one row per PV, its 4 cardinal neighbor pixel IDs
 """
 
 import numpy as np
@@ -146,17 +149,6 @@ if __name__ == "__main__":
         })
     pd.DataFrame(nbr_rows).to_csv(out_dir / "pv_neighbor_map.csv", index=False)
     print(f"✓ pv_neighbor_map.csv saved ({len(nbr_rows)} rows)")
-
-    # ── Print pixel table ────────────────────────────────────
-    print("─" * 65)
-    print(f"{'#':<4} {'pixel_id':<32} {'lat':>8} {'lon':>10} {'n_locs':>7}")
-    print("─" * 65)
-    for i, row in unique_pixels.iterrows():
-        flag = " ← neighbor-only" if row['n_locations'] == 0 else ""
-        print(f"{i:<4} {row['pixel_id']:<32} "
-              f"{row['pixel_lat']:>8.4f} {row['pixel_lon']:>10.4f} "
-              f"{row['n_locations']:>7}{flag}")
-    print("─" * 65)
 
     # ── Verify station C13 files vs pixel assignments ─────────
     print("\n── Station → Pixel mapping ─────────────────────")

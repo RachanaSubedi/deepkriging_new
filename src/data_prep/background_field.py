@@ -7,7 +7,7 @@ covariates from all 182 NSRDB grid points, at station and PV locations.
 NSRDB filename pattern: {lat}_{lon}_{year}.csv
 
 Run:
-    python src/background_field.py
+    python src/data_prep/background_field.py
 
 Outputs (data/processed/background_field/):
     bg_csi_stations.parquet        (T, 4)    background CSI at stations
@@ -38,10 +38,7 @@ IDW_POWER           = 2.0
 CLEARSKY_NIGHT_W_M2 = 10.0
 CSI_CLIP_MAX        = 2.0
 
-# Met variables to extract (continuous → IDW, categorical → nearest-neighbour)
-MET_CONTINUOUS = ['Temperature', 'Relative Humidity', 'Pressure',
-                  'Solar Zenith Angle']
-MET_CATEGORICAL = []   # nearest-neighbour only
+# Met variables to extract (all handled via IDW interpolation)
 MET_KEYS = {
     'Temperature'       : 'temperature',
     'Relative Humidity' : 'rh',
@@ -164,23 +161,12 @@ def idw_weights(nsrdb_locs, target_locs, power=IDW_POWER):
     return W
 
 
-# ── STEP 6: NEAREST-NEIGHBOUR INDEX ──────────────────────────
-def nearest_idx(nsrdb_locs, target_locs):
-    """Return index of closest NSRDB point for each target (for cloud type)."""
-    idx = np.zeros(len(target_locs), dtype=int)
-    for m, (tlat, tlon) in enumerate(target_locs):
-        dlat = (nsrdb_locs[:, 0] - tlat) * KM_PER_LAT
-        dlon = (nsrdb_locs[:, 1] - tlon) * KM_PER_LON
-        idx[m] = np.sqrt(dlat**2 + dlon**2).argmin()
-    return idx
-
-
-# ── STEP 7: APPLY IDW ────────────────────────────────────────
+# ── STEP 6: APPLY IDW ────────────────────────────────────────
 def apply_idw(W, arr):
     return (W @ arr).astype(np.float32)   # (M, N) @ (N, T) = (M, T)
 
 
-# ── STEP 8: SAVE HELPER ──────────────────────────────────────
+# ── STEP 7: SAVE HELPER ──────────────────────────────────────
 def save_df(arr, timestamps, names, path):
     df = pd.DataFrame(arr.T, index=timestamps, columns=names)
     df.index.name = 'datetime_local'
@@ -224,12 +210,10 @@ if __name__ == "__main__":
     print(f"      Stations : {station_names}")
     print(f"      PVs      : {len(pv_names)}")
 
-    # ── 4. IDW weights + nearest-neighbour index ──────────────
+    # ── 4. IDW weights ──────────────────────────────────────
     print("\n[4/6] Computing IDW weights...")
     W_st  = idw_weights(nsrdb_locs, station_locs)
     W_pvs = idw_weights(nsrdb_locs, pv_locs)
-    nn_st  = nearest_idx(nsrdb_locs, station_locs)
-    nn_pvs = nearest_idx(nsrdb_locs, pv_locs)
     print(f"      W_stations row-sum : {W_st.sum(axis=1).min():.6f}")
     print(f"      W_pvs     row-sum  : {W_pvs.sum(axis=1).min():.6f}")
 
@@ -255,14 +239,8 @@ if __name__ == "__main__":
     for col, key in MET_KEYS.items():
         arr = met[key]   # (N, T)
 
-        if col in MET_CONTINUOUS:
-            # IDW interpolation for continuous variables
-            st_arr  = apply_idw(W_st,  arr)
-            pv_arr  = apply_idw(W_pvs, arr)
-        else:
-            # Nearest-neighbour for cloud type (categorical)
-            st_arr  = arr[nn_st,  :]   # (4,   T)
-            pv_arr  = arr[nn_pvs, :]   # (178, T)
+        st_arr = apply_idw(W_st,  arr)
+        pv_arr = apply_idw(W_pvs, arr)
 
         save_df(st_arr,  timestamps, station_names,
                 BG_DIR / f"met_{key}_stations.parquet")

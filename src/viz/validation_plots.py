@@ -12,7 +12,7 @@ Reads:
     outputs/validation/loso_results.csv
 
 Run:
-    python src/validation_plots.py
+    python src/viz/validation_plots.py
 
 Outputs → outputs/figures/
 """
@@ -24,7 +24,7 @@ import matplotlib.dates as mdates
 import sys
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from configs.config import VAL_DIR, FIG_DIR, STATIONS
 
@@ -168,6 +168,7 @@ if __name__ == "__main__":
     print("  validation_plots.py")
     print("=" * 55)
 
+    FIG_DIR = FIG_DIR / "viz"
     FIG_DIR.mkdir(parents=True, exist_ok=True)
 
     print("\nLoading prediction files...")

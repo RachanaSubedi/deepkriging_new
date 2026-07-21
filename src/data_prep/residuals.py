@@ -10,15 +10,14 @@ where
     CSI_background(s,t)  = IDW-interpolated NSRDB CSI  (from background_field.py)
     GHI_clearsky_idw(s,t)= IDW-interpolated NSRDB clearsky GHI (from background_field.py)
 
-Station file:  data/raw/stations/all_stations_GHI_30min_PST_filled.csv
+Station file:  data/raw/stations/all_stations_GHI_5min_PST.csv
                columns: datetime | GHI_S1 | GHI_S2 | GHI_S3 | GHI_P2
 
 Run:
-    python src/residuals.py
+    python src/data_prep/residuals.py
 
 Outputs (data/processed/residuals/):
     csi_stations.parquet       (17520, 4)  measured CSI at stations
-    residuals_stations.parquet (17520, 4)  CSI residual at stations
 """
 
 import numpy as np
@@ -147,7 +146,6 @@ if __name__ == "__main__":
     # clear-sky in this region. Subtract the mean daytime bias per station
     # so the model learns spatial variation, not a systematic offset.
     station_names = list(STATIONS.keys())
-    # Bias-correct background CSI
     day_mask = cs_aligned.values >= CLEARSKY_MIN_W_M2
     bias = np.where(day_mask, csi_df.values - bg_aligned.values, np.nan)
     bias_mean = np.nanmean(bias, axis=0)  # (4,) one per station
@@ -161,12 +159,14 @@ if __name__ == "__main__":
     resid_df = csi_df - bg_corrected.values
 
     RESID_DIR.mkdir(parents=True, exist_ok=True)
-    csi_df.to_parquet(RESID_DIR   / "csi_stations.parquet")
-    #resid_df.to_parquet(RESID_DIR / "residuals_stations.parquet")
+    csi_df.to_parquet(RESID_DIR / "csi_stations.parquet")
+    # NOTE: resid_df is NOT persisted — nothing downstream reads a saved
+    # residuals_stations.parquet (training_matrix.py recomputes residuals
+    # itself from csi_stations.parquet + background fields). resid_df is
+    # kept in memory only, for the sanity check below.
 
     # ── Sanity check ─────────────────────────────────────────
     print("\n── Sanity Check ────────────────────────────────────")
-    station_names = list(STATIONS.keys())
 
     for s in station_names:
         day_mask   = cs_aligned[s] >= CLEARSKY_MIN_W_M2
@@ -185,6 +185,5 @@ if __name__ == "__main__":
               f"range=[{r_day.min():.3f}, {r_day.max():.3f}]")
 
     print(f"\n✓ residuals.py complete")
-    print(f"  csi_stations.parquet       {csi_df.shape}")
-    print(f"  residuals_stations.parquet {resid_df.shape}")
+    print(f"  csi_stations.parquet  {csi_df.shape}")
     print(f"  Output dir: {RESID_DIR}")

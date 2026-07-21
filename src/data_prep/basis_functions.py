@@ -1,8 +1,17 @@
 """
 src/basis_functions.py
 
-Builds multi-resolution Wendland RBF basis matrix for all locations.
+Builds multi-resolution Wendland RBF basis matrix for all locations
+(stations, NSRDB grid points, PVs).
 
+Run:
+    python src/data_prep/basis_functions.py
+
+Outputs (data/processed/basis/):
+    active_mask.npy           bool mask of non-all-zero basis columns kept
+    Phi_stations_scaled.npy   (4, K)    basis values at stations
+    Phi_nsrdb_scaled.npy      (182, K)  basis values at NSRDB grid points
+    Phi_pvs_scaled.npy        (178, K)  basis values at PVs
 """
 
 import numpy as np
@@ -141,21 +150,7 @@ def remove_zero_columns(Phi_all, meta,
     return Phi_stations, Phi_nsrdb, Phi_pvs, active_mask, active_meta
 
 
-# ── STEP 5: NORMALISE ────────────────────────────────────────
-def normalise_basis(Phi_stations, Phi_nsrdb, Phi_pvs):
-    """
-    Raw Wendland values are already in [0, 1] by construction
-    (=1 at knot center, →0 beyond support). No scaling needed.
-    Per-column min-max fit on 4 stations divides PV values by tiny
-    station-derived ranges, exploding them to huge numbers — and
-    destroys the smooth RBF spatial decay. Pass through unchanged.
-    """
-    col_min   = np.zeros(Phi_stations.shape[1], dtype=np.float32)
-    col_range = np.ones(Phi_stations.shape[1],  dtype=np.float32)
-    return Phi_stations, Phi_nsrdb, Phi_pvs, col_min, col_range
-
-
-# ── STEP 6: UNIQUENESS CHECK ─────────────────────────────────
+# ── STEP 5: UNIQUENESS CHECK ─────────────────────────────────
 def check_uniqueness(Phi_pvs, pv_names, threshold=1e-4):
     """
     Verify every PV location has a unique spatial fingerprint.
@@ -243,25 +238,23 @@ if __name__ == "__main__":
         remove_zero_columns(
             Phi_all, meta, n_stations, n_nsrdb, n_pvs)
 
-    # ── Normalise ─────────────────────────────────────────────
-    Phi_st_sc, Phi_ns_sc, Phi_pv_sc, col_min, col_range = \
-        normalise_basis(Phi_stations, Phi_nsrdb, Phi_pvs)
+    # ── Note: Wendland values are already in [0, 1] by construction
+    # (=1 at knot center, →0 beyond support) — no further scaling
+    # needed or applied.
 
     # ── Uniqueness check ──────────────────────────────────────
-    check_uniqueness(Phi_pv_sc, pv_names)
+    check_uniqueness(Phi_pvs, pv_names)
 
     # ── Save ──────────────────────────────────────────────────
     BASIS_DIR.mkdir(parents=True, exist_ok=True)
 
     np.save(BASIS_DIR / "active_mask.npy",   active_mask)
-    np.save(BASIS_DIR / "phi_col_min.npy",   col_min)
-    np.save(BASIS_DIR / "phi_col_range.npy", col_range)
-    np.save(BASIS_DIR / "Phi_stations_scaled.npy", Phi_st_sc)
-    np.save(BASIS_DIR / "Phi_nsrdb_scaled.npy",    Phi_ns_sc)
-    np.save(BASIS_DIR / "Phi_pvs_scaled.npy",      Phi_pv_sc)
+    np.save(BASIS_DIR / "Phi_stations_scaled.npy", Phi_stations)
+    np.save(BASIS_DIR / "Phi_nsrdb_scaled.npy",    Phi_nsrdb)
+    np.save(BASIS_DIR / "Phi_pvs_scaled.npy",      Phi_pvs)
 
     print(f"\n✓ Basis matrices saved to {BASIS_DIR}")
-    print(f"  Final K          : {Phi_pv_sc.shape[1]}")
+    print(f"  Final K          : {Phi_pvs.shape[1]}")
     print(f"  Final input dim  : "
-          f"15 covariates + {Phi_pv_sc.shape[1]} basis "
-          f"= {15 + Phi_pv_sc.shape[1]}")
+          f"15 covariates + {Phi_pvs.shape[1]} basis "
+          f"= {15 + Phi_pvs.shape[1]}")

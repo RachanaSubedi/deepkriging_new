@@ -12,7 +12,7 @@ time, and climatological Linke turbidity) so pvlib gives the exact
 value at every PV location — no interpolation needed.
 
 Run (once):
-    python src/clearsky_pvlib.py
+    python src/data_prep/clearsky_pvlib.py
 
 Outputs (data/processed/background_field/):
     clearsky_pvlib_stations.parquet   (T, 4)

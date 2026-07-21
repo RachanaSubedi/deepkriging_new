@@ -1,5 +1,5 @@
 """
-figures/plot_goes_pixel_map.py
+src/plot_goes_pixel_map.py
 
 Generates a map showing:
   - 178 PV locations (all same color)
@@ -7,24 +7,29 @@ Generates a map showing:
   - 4 measurement stations
 
 Run:
-    python figures/plot_goes_pixel_map.py
+    python src/viz/plot_goes_pixel_map.py
 
 Output:
-    outputs/figures/goes_pixel_map.png
+    outputs/figures/viz/goes_pixel_map.png
 """
 
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')   # non-interactive backend — matches every other viz script
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
 import numpy as np
 from pathlib import Path
+import sys
+
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from configs.config import FIG_DIR
 
 # ── Load data ──────────────────────────────────────────────────
-df = pd.read_csv(
-    r"C:\Users\C838122727\Documents\CSU\research\deepkriging_solar"
-    r"\data\processed\pv_pixel_map.csv"
-)
+PIXEL_MAP_CSV = (Path(__file__).parent.parent.parent / "data" / "processed"
+                 / "pv_pixel_map.csv")
+df = pd.read_csv(PIXEL_MAP_CSV)
 
 station_df = df[df['pv_name'].str.startswith('STATION_')].copy()
 pv_df      = df[~df['pv_name'].str.startswith('STATION_')].copy()
@@ -100,10 +105,9 @@ ax.tick_params(labelsize=9)
 
 plt.tight_layout()
 
-out_dir = Path(r"C:\Users\C838122727\Documents\CSU\research"
-               r"\deepkriging_solar\outputs\figures")
+out_dir = FIG_DIR / "viz"
 out_dir.mkdir(parents=True, exist_ok=True)
 out_path = out_dir / "goes_pixel_map.png"
 plt.savefig(out_path, dpi=180, bbox_inches='tight')
+plt.close()
 print(f"✓ Saved: {out_path}")
-plt.show()

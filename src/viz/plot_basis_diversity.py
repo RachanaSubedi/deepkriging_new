@@ -1,5 +1,5 @@
 """
-plot_basis_diversity.py
+src/plot_basis_diversity.py
 
 Visualizes spatial diversity coming from the Wendland RBF basis
 functions ALONE — using the basis-only ("_nocov") DeepKriging model's
@@ -12,11 +12,11 @@ in the five-method baseline comparison is attributable to the basis
 functions, not the covariate stack.
 
 Inputs expected:
-    outputs/predictions_nocov/ghi_pvs.parquet   (from predictnew.py)
+    outputs/predictions_nocov/ghi_pvs.parquet   (from predict_nocov.py)
     data/raw/pv_nn_assignments.csv              (pv_name, pv_lat, pv_lon)
 
 Run:
-    python plot_basis_diversity.py
+    python src/viz/plot_basis_diversity.py
 """
 
 import pandas as pd
@@ -25,21 +25,18 @@ import matplotlib
 matplotlib.use('Agg')   # non-interactive backend — no popup window
 import matplotlib.pyplot as plt
 from pathlib import Path
+import sys
 
-# ── PATHS — edit these to match your environment ──────────────
-PRED_PARQUET = Path("outputs/predictions_nocov/ghi_pvs.parquet")
-PV_CSV       = Path("data/raw/pv_nn_assignments.csv")
-OUT_PNG      = Path("outputs/figures_nocov/fig_basis_only_spatial_diversity.png")
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from configs.config import STATIONS, OUTPUT_DIR
+
+# ── PATHS ─────────────────────────────────────────────────────
+PRED_PARQUET = OUTPUT_DIR / "predictions_nocov" / "ghi_pvs.parquet"
+PV_CSV       = Path(__file__).parent.parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
+OUT_PNG      = OUTPUT_DIR / "figures_nocov" / "fig_basis_only_spatial_diversity.png"
 
 # ── Which day/timestep to visualize ────────────────────────────
 TARGET_DATE = "2024-03-22"   # set to any date present in your predictions
-
-STATIONS = {
-    'S1': {'lat': 46.59,  'lon': -119.150},
-    'S2': {'lat': 46.82,  'lon': -119.160},
-    'S3': {'lat': 46.82,  'lon': -119.150},
-    'P2': {'lat': 46.78,  'lon': -119.228},
-}
 
 
 def main():
