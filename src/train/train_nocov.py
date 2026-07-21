@@ -1,9 +1,9 @@
 """
-src/trainnew.py
+src/train_nocov.py
 
 ABLATION: basis-functions-only DeepKriging (no covariates).
 
-Identical to train.py except the 18 covariate columns are dropped
+Identical to train.py except the 15 covariate columns are dropped
 from X before training — only the 411 Wendland RBF basis columns
 are kept. Purpose: isolate how much of the model's predictive power
 comes from spatial basis structure alone vs. the covariate stack
@@ -34,10 +34,10 @@ Outputs (outputs/models_nocov/ and outputs/validation_nocov/):
     fold_{k}_predictions.csv     test predictions with timestamps
     fold_{k}_history.csv         epoch-by-epoch train/val loss
     loso_summary.txt             RMSE / R² for all folds
-    fig_loss_curves.png          training loss curves (outputs/figures_nocov/)
+    fig_loss_combined.png        training loss curves (outputs/figures_nocov/train/)
 
 Run:
-    python src/trainnew.py
+    python src/train/train_nocov.py
 """
 
 import numpy as np
@@ -54,7 +54,7 @@ import matplotlib
 matplotlib.use('Agg')   # non-interactive backend — no popup window
 import matplotlib.pyplot as plt
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from configs.config import (
     TRAIN_DIR, MODEL_DIR, VAL_DIR, BG_DIR, FIG_DIR,
@@ -223,57 +223,12 @@ def predict(model, X):
 
 def plot_loss_curves(val_dir, fig_dir, station_names):
     """
-    Reads fold_*_history.csv files saved during training and
-    generates two figures:
-      fig_loss_curves.png   — 4-panel, one per fold
-      fig_loss_combined.png — all folds overlaid
+    Reads fold_*_history.csv files saved during training and generates
+    fig_loss_combined.png — training/validation loss for all 4 folds
+    overlaid, with each fold's best epoch marked.
     """
-    fig, axes = plt.subplots(2, 2, figsize=(13, 9))
-    fig.suptitle('DeepKriging — Training & Validation Loss per Fold',
-                 fontsize=13, fontweight='bold')
-
-    for ax, (k, station) in zip(axes.flat, enumerate(station_names)):
-        hist     = pd.read_csv(val_dir / f"fold_{k}_history.csv")
-        color    = FOLD_COLORS[station]
-        best_idx = hist['val_loss'].idxmin()
-        best_ep  = int(hist.loc[best_idx, 'epoch'])
-        best_val = hist.loc[best_idx, 'val_loss']
-        best_tr  = hist.loc[best_idx, 'train_loss']
-
-        ax.plot(hist['epoch'], hist['train_loss'],
-                color=color, lw=1.8, label='Train loss')
-        ax.plot(hist['epoch'], hist['val_loss'],
-                color=color, lw=1.8, ls='--', label='Val loss')
-
-        # Mark best epoch
-        ax.axvline(best_ep, color='black', lw=1.0, ls=':', alpha=0.5)
-        ax.scatter([best_ep], [best_val], color='black', s=60, zorder=5)
-        ax.annotate(f"best val={best_val:.5f}\nepoch {best_ep}",
-                    (best_ep, best_val), xytext=(6, 4),
-                    textcoords='offset points', fontsize=7.5)
-
-        # Stats box
-        gap = best_tr - best_val
-        ax.text(0.98, 0.96,
-                f"Train={best_tr:.5f}\nVal  ={best_val:.5f}\nGap ={gap:+.5f}",
-                transform=ax.transAxes, fontsize=7.5,
-                ha='right', va='top',
-                bbox=dict(boxstyle='round,pad=0.3', fc='white', alpha=0.85))
-
-        ax.set_title(f"Fold {k} — hold out {station}  "
-                     f"({len(hist)} epochs)",
-                     fontsize=10, fontweight='bold', color=color)
-        ax.set_xlabel('Epoch')
-        ax.set_ylabel('Huber Loss')
-        ax.legend(fontsize=8)
-        ax.grid(alpha=0.25)
-
-    plt.tight_layout()
+    fig_dir = fig_dir / "train"
     fig_dir.mkdir(parents=True, exist_ok=True)
-    out1 = fig_dir / "fig_loss_curves.png"
-    plt.savefig(out1, dpi=160, bbox_inches='tight')
-    plt.close()
-    print(f"  ✓ {out1.name}")
 
     # ── Combined: all folds overlaid ─────────────────────────
     fig, (ax_tr, ax_val) = plt.subplots(1, 2, figsize=(13, 5))
@@ -314,7 +269,7 @@ def plot_loss_curves(val_dir, fig_dir, station_names):
 if __name__ == "__main__":
 
     print("=" * 60)
-    print("  train.py — DeepKriging LOSO Cross-Validation")
+    print("  train_nocov.py — DeepKriging LOSO Cross-Validation (ablation)")
     print("=" * 60)
 
     # ── Load training matrix ──────────────────────────────────
@@ -324,11 +279,11 @@ if __name__ == "__main__":
     fold_ids = np.load(TRAIN_DIR / "fold_ids.npy")
     ts_ns    = np.load(TRAIN_DIR / "timestamps.npy")
 
-    # ── ABLATION: drop the 18 covariate columns ───────────────
-    # X is assembled in training_matrix.py as [phi (411) | covariates (18)]
-    # so covariates are always the LAST 18 columns. Slicing them off
+    # ── ABLATION: drop the 15 covariate columns ───────────────
+    # X is assembled in training_matrix.py as [phi (411) | covariates (15)]
+    # so covariates are always the LAST 15 columns. Slicing them off
     # leaves a pure basis-function input.
-    N_COV = 18
+    N_COV = 15
     print(f"\n  ⚠ ABLATION MODE — dropping last {N_COV} covariate columns")
     print(f"  X shape before: {X.shape}")
     X = X[:, :-N_COV]
@@ -465,9 +420,7 @@ if __name__ == "__main__":
         r2_ghi   = r2_score(ghi_true[day], ghi_pred[day])
 
         print(f"\n  ── Test Results ({test_station}) ──────────────────")
-        print(f"  CSI (raw out) RMSE={rmse_csi_raw:.4f}  R²={r2_csi_raw:.4f}  "
-              f"← unclipped model output vs measured CSI")
-        print(f"  CSI (clipped) RMSE={rmse(csi_true[day], csi_pred[day]):.4f}  "
+        print(f"  CSI RMSE={rmse(csi_true[day], csi_pred[day]):.4f}  "
               f"R²={r2_score(csi_true[day], csi_pred[day]):.4f}")
         print(f"  GHI (W/m²)    RMSE={rmse_ghi:.2f}    R²={r2_ghi:.4f}")
 
@@ -504,22 +457,11 @@ if __name__ == "__main__":
 
     # ── Summary ───────────────────────────────────────────────
     print(f"\n[3/3] LOSO Summary")
-    print(f"{'─'*60}")
-    print(f"{'Fold':<6} {'Station':<8} {'RMSE_CSI':>10} {'R²_CSI':>8} "
-          f"{'RMSE_GHI':>10} {'R²_GHI':>8}")
-    print(f"{'─'*60}")
-
     results_df = pd.DataFrame(fold_results)
-    for _, row in results_df.iterrows():
-        print(f"  {int(row.fold):<4} {row.test_station:<8} "
-              f"{row.rmse_csi_raw:>10.4f} {row.r2_csi_raw:>8.4f} "
-              f"{row.rmse_ghi:>10.2f} {row.r2_ghi:>8.4f}")
-    print(f"{'─'*60}")
-    print(f"  {'Mean':<12} "
-          f"{results_df.rmse_csi_raw.mean():>10.4f} "
-          f"{results_df.r2_csi_raw.mean():>8.4f} "
-          f"{results_df.rmse_ghi.mean():>10.2f} "
-          f"{results_df.r2_ghi.mean():>8.4f}")
+    print(results_df[['fold', 'test_station', 'rmse_csi_raw', 'r2_csi_raw',
+                       'rmse_ghi', 'r2_ghi']].round(4).to_string(index=False))
+    print(f"Mean RMSE_GHI={results_df.rmse_ghi.mean():.2f}  "
+          f"Mean R2_GHI={results_df.r2_ghi.mean():.4f}")
 
     summary_lines = [
         "DeepKriging LOSO Cross-Validation Results", "=" * 50,

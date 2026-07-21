@@ -27,7 +27,7 @@ Checks THREE possible causes, in order:
      is going on, e.g. wrong fold being applied)?
 
 Run:
-    python src/diagnose_qm_extrapolation.py
+    python src/correction/diagnose_qm_extrapolation.py
 """
 
 import numpy as np
@@ -36,12 +36,12 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import sys
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from configs.config import PRED_DIR, FIG_DIR, STATIONS, KM_PER_LAT, KM_PER_LON
 
 # reuse the actual pipeline's transform + IDW code rather than
 # reimplementing it, so this diagnostic is checking the real logic
-from spatial_map_qm import (
+from src.correction.spatial_qm import (
     to_logit_space, from_logit_space, CSI_CAP, EPS,
     STATION_NAMES, dist_km, idw_weights, FOLD_FILES,
 )
@@ -51,7 +51,7 @@ TARGET_DATE = "2024-12-31"
 WINDOW_START = "10:00"
 WINDOW_END = "10:45"
 
-QM_DIAG_DIR = FIG_DIR / "qm"
+QM_DIAG_DIR = FIG_DIR / "correction"
 QM_DIAG_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -81,7 +81,7 @@ for s in STATION_NAMES:
     station_bounds[s] = (model_q.min(), model_q.max())
     print(f"  {s}: fitted logit-space range = [{model_q.min():.3f}, {model_q.max():.3f}]")
 
-pv_file = Path(__file__).parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
+pv_file = Path(__file__).parent.parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
 pv_df = pd.read_csv(pv_file)
 
 # ──────────────────────────────────────────────────────────────
@@ -202,7 +202,7 @@ print(f"\n[5/5] Checking for locally steep transfer-function segments "
       f"near the observed input range (t_raw in [-1.45, -1.05])...")
 
 # NOTE: after applying the symmetric slope-cap patch to
-# spatial_quantile_mapping.py and regenerating transfer_functions_qm.npz,
+# spatial_qm.py and regenerating transfer_functions_qm.npz,
 # every station below should report max local slope <= MAX_SLOPE_CHECK.
 MAX_SLOPE_CHECK = 2.0
 

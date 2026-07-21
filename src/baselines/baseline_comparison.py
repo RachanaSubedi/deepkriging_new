@@ -26,7 +26,7 @@ classifier — a simple, defensible regime split):
     Broken-cloud — std >= 0.20  (high intra-day variability)
 
 Run:
-    python src/baseline_comparison.py
+    python src/baselines/baseline_comparison.py
 
 Outputs (outputs/validation/):
     baseline_comparison_overall.csv     — method x fold table
@@ -40,7 +40,7 @@ import sys
 from pathlib import Path
 from sklearn.metrics import r2_score
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from configs.config import STATIONS, RESID_DIR, BG_DIR, VAL_DIR, KM_PER_LAT, KM_PER_LON
 
 CLEARSKY_MIN = 10.0
@@ -141,6 +141,17 @@ if __name__ == "__main__":
     dk_all = pd.concat(dk_frames, ignore_index=True)
 
     # ── Quantile-corrected version: reuse correction_factors.csv ──
+    # NOTE: correction_factors.csv is from an earlier, simpler per-
+    # (month, hour) correction approach and is no longer produced by
+    # anything in the current pipeline -- src/correction/spatial_qm.py
+    # now works directly on the 178-PV GHI parquets instead. This
+    # branch is kept as a graceful no-op (method 5 below silently
+    # duplicates method 4) rather than being rewired to the new
+    # approach, since src/correction/validate_qm_accuracy.py
+    # already provides a more rigorous raw-vs-corrected comparison at
+    # the 4 stations -- via genuine leave-one-station-out testing,
+    # which a simple lookup-table reapplication here would not have.
+    # Use that script for the real corrected-vs-raw comparison.
     cf_path = Path(VAL_DIR).parent / "predictions" / "correction_factors.csv"
     has_corrected = cf_path.exists()
     if has_corrected:
@@ -154,7 +165,10 @@ if __name__ == "__main__":
         dk_all['ghi_pred_corrected'] = dk_all['ghi_pred'] * dk_all['cf']
     else:
         dk_all['ghi_pred_corrected'] = dk_all['ghi_pred']
-        print("  ⚠ correction_factors.csv not found — using uncorrected as 'corrected'")
+        print("  ⚠ correction_factors.csv not found (expected -- this approach "
+              "was superseded). 'deepkriging_corrected' below duplicates "
+              "'deepkriging'. See src/correction/validate_qm_accuracy.py "
+              "for the current corrected-vs-raw comparison.")
 
     # ── Compute baselines per fold ───────────────────────────────
     print("\n[4/5] Computing all 5 methods per fold...")

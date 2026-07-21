@@ -4,10 +4,9 @@ src/spatial_map_qm.py
 Time-series visualisation of the quantile-mapped (QM) GHI predictions
 (ghi_pvs_qm.parquet), plotted directly against the uncorrected baseline
 (ghi_pvs.parquet) and station measurements — so the effect of
-spatial_quantile_mapping.py is visible, not just the corrected result
-in isolation.
+spatial_qm.py is visible, not just the corrected result in isolation.
 
-Produces (outputs/figures/qm/):
+Produces (outputs/figures/correction/):
   fig_{TARGET_DATE}_qm_vs_baseline_timeseries.png
       all 178 PV QM predictions (faint) + QM median + baseline median
       + station measurements, for one day
@@ -16,7 +15,7 @@ Produces (outputs/figures/qm/):
       correction shifts things and by how much
 
 Run:
-    python src/spatial_map_qm.py
+    python src/correction/spatial_map_qm.py
 """
 
 import numpy as np
@@ -25,7 +24,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import sys
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from configs.config import FIG_DIR, STATIONS, PRED_DIR
 
 # ── Which date to plot — change this, nothing else needs editing ──
@@ -34,11 +33,11 @@ TARGET_DATE = "2024-12-31"
 # ── PATHS ─────────────────────────────────────────────────────
 QM_PARQUET       = PRED_DIR / "ghi_pvs_qm.parquet"
 BASELINE_PARQUET = PRED_DIR / "ghi_pvs.parquet"
-PV_CSV      = Path(__file__).parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
-STATION_CSV = (Path(__file__).parent.parent / "data" / "raw" / "stations"
+PV_CSV      = Path(__file__).parent.parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
+STATION_CSV = (Path(__file__).parent.parent.parent / "data" / "raw" / "stations"
                / "all_stations_GHI_5min_PST.csv")
 
-QM_OUT_DIR = FIG_DIR / "qm"
+QM_OUT_DIR = FIG_DIR / "correction"
 QM_OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 STATION_COLORS = {'S1': '#e63946', 'S2': '#2a9d8f',

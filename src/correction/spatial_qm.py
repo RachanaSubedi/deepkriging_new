@@ -1,9 +1,23 @@
 """
-src/spatial_quantile_mapping.py
+src/spatial_qm.py
 
 Spatial quantile-mapping bias correction for DeepKriging's 178-PV field,
 adapted from Bailey et al. 2024 ("Adapting Quantile Mapping to Bias
 Correct Solar Radiation Data", arXiv:2405.20352).
+
+Includes a symmetric slope-cap safeguard (see cap_transfer_function_slope)
+found necessary after diagnose_qm_extrapolation.py traced a Dec 31, 2024
+GHI overshoot to locally-steep-but-in-range transfer function segments.
+
+Run:
+    python src/correction/spatial_qm.py
+
+Outputs (outputs/predictions/):
+    ghi_pvs_qm.parquet           (T, 178)  spatially quantile-mapped GHI
+    transfer_functions_qm.npz    the 4 fitted, slope-capped per-station T() functions
+
+Outputs (outputs/figures/correction/):
+    fig_qm_transfer_functions.png  diagnostic plot of the 4 T() curves
 """
 
 import sys
@@ -15,7 +29,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from configs.config import (
     VAL_DIR, PRED_DIR, BG_DIR, FIG_DIR,
     STATIONS, KM_PER_LAT, KM_PER_LON,
@@ -163,7 +177,7 @@ def apply_transfer_function(T, raw_csi):
 # ── MAIN ─────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("=" * 60)
-    print("  spatial_quantile_mapping.py — Bailey et al. adaptation")
+    print("  spatial_qm.py — Bailey et al. adaptation")
     print("  (with slope-cap safeguard, MAX_SLOPE =", MAX_SLOPE, ")")
     print("=" * 60)
 
@@ -199,7 +213,7 @@ if __name__ == "__main__":
     print("\n[3/5] Loading 178-PV raw predictions...")
     csi_raw_pvs = pd.read_parquet(PRED_DIR / "csi_pred_raw_pvs.parquet")
     bg_clearsky = pd.read_parquet(BG_DIR / "bg_clearsky_pvs.parquet")
-    pv_file = Path(__file__).parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
+    pv_file = Path(__file__).parent.parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
     pv_df = pd.read_csv(pv_file)
     pv_names = list(csi_raw_pvs.columns)
 
@@ -257,6 +271,7 @@ if __name__ == "__main__":
     print(f"  Diversity       : baseline={div_base:.1f}/178  qm-corrected={div_qm:.1f}/178")
     print(f"  Per-PV spread   : {spread_qm:.2f} W/m²")
 
+    FIG_DIR = FIG_DIR / "correction"
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     fig, ax = plt.subplots(figsize=(8, 7))
     colors = {'S1': '#e63946', 'S2': '#2a9d8f', 'S3': '#e76f51', 'P2': '#264653'}
@@ -278,7 +293,12 @@ if __name__ == "__main__":
     plt.close()
     print(f"\n  ✓ {out.name}")
 
-    print(f"\n✓ spatial_quantile_mapping.py complete")
-    print(f"  Note: this is a SIDE EXPERIMENT, separate from ghi_pvs.parquet.")
-    print(f"  Compare ghi_pvs_qm.parquet against the validated baseline before")
-    print(f"  deciding whether to fold it into the main pipeline / re-run NNRF on it.")
+    print(f"\n✓ spatial_qm.py complete")
+    print(f"  KNOWN TRADEOFF (see src/correction/validate_qm_accuracy.py):")
+    print(f"  this correction restores spatial diversity DeepKriging's mean-")
+    print(f"  reversion had collapsed, but the honest leave-one-station-out")
+    print(f"  test showed it does NOT improve, and can worsen, point-in-time")
+    print(f"  RMSE at the 4 real stations (worst for S1, the geographic and")
+    print(f"  bias outlier). Decide whether ghi_pvs_qm.parquet feeds Stage 2")
+    print(f"  NNRF downscaling with this tradeoff in mind, not as a strict")
+    print(f"  accuracy improvement over ghi_pvs.parquet.")

@@ -42,7 +42,7 @@ what's actually deployed to the 178 PVs -- not a re-derived
 approximation of it.
 
 Run:
-    python src/validate_qm_accuracy.py
+    python src/correction/validate_qm_accuracy.py
 """
 
 import sys
@@ -51,42 +51,12 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from configs.config import VAL_DIR, PRED_DIR, STATIONS, KM_PER_LAT, KM_PER_LON
-
-STATION_NAMES = ['S1', 'S2', 'S3', 'P2']
-FOLD_FILES = {
-    'S1': VAL_DIR / "fold_0_S1_predictions.csv",
-    'S2': VAL_DIR / "fold_1_S2_predictions.csv",
-    'S3': VAL_DIR / "fold_2_S3_predictions.csv",
-    'P2': VAL_DIR / "fold_3_P2_predictions.csv",
-}
-
-CSI_CAP = 1.3
-EPS = 1e-4
-
-
-def to_logit_space(csi):
-    kc = np.clip(csi / CSI_CAP, EPS, 1 - EPS)
-    return np.log(kc / (1 - kc))
-
-
-def from_logit_space(t):
-    kc = 1.0 / (1.0 + np.exp(-t))
-    return kc * CSI_CAP
-
-
-def dist_km(lat1, lon1, lat2, lon2):
-    dlat = (lat1 - lat2) * KM_PER_LAT
-    dlon = (lon1 - lon2) * KM_PER_LON
-    return np.sqrt(dlat ** 2 + dlon ** 2)
-
-
-def idw_weights(target_lat, target_lon, src_lats, src_lons, power=1.0):
-    d = dist_km(target_lat, target_lon, np.asarray(src_lats), np.asarray(src_lons))
-    d = np.where(d < 1e-6, 1e-6, d)
-    w = 1.0 / (d ** power)
-    return w / w.sum()
+from src.correction.spatial_qm import (
+    to_logit_space, from_logit_space, dist_km, idw_weights,
+    STATION_NAMES, FOLD_FILES, CSI_CAP,
+)
 
 
 def metrics(pred, true):

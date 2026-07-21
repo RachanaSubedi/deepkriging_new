@@ -1,8 +1,8 @@
 """
-src/predictnew.py
+src/predict_nocov.py
 
 ABLATION: PV-location inference using the basis-functions-only
-DeepKriging models trained by trainnew.py (no covariates).
+DeepKriging models trained by train_nocov.py (no covariates).
 
 Loads the 4 LOSO models from outputs/models_nocov/ (each expecting
 input_dim = 411, basis functions only) and runs inference at all
@@ -14,7 +14,7 @@ logic exactly, so the two outputs are directly comparable:
     outputs/predictions_nocov/ghi_pvs.parquet   ← this script (basis-only)
 
 Run:
-    python src/predictnew.py
+    python src/predict/predict_nocov.py
 
 Outputs (outputs/predictions_nocov/):
     ghi_pvs.parquet           (T, 178)  GHI W/m²  — NaN at nighttime
@@ -29,7 +29,7 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from configs.config import (
     STATIONS, BASIS_DIR, BG_DIR,
@@ -62,7 +62,7 @@ def predict_batch(model, X_batch):
 if __name__ == "__main__":
 
     print("=" * 60)
-    print("  predictnew.py — DeepKriging PV Inference (ABLATION: basis-only)")
+    print("  predict_nocov.py — DeepKriging PV Inference (ABLATION: basis-only)")
     print("=" * 60)
 
     # ── 1. Load models and scalers ────────────────────────────
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     print("\n[2/5] Loading PV inputs...")
 
     Phi_pvs  = np.load(BASIS_DIR / "Phi_pvs_scaled.npy")   # (178, 411)
-    pv_path  = Path(__file__).parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
+    pv_path  = Path(__file__).parent.parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
     pv_df    = pd.read_csv(pv_path)
     pv_names = pv_df['pv_name'].tolist()
     M        = len(pv_names)
@@ -237,5 +237,5 @@ if __name__ == "__main__":
           f"{pv_means.max():.1f}] W/m²  "
           f"(spread across 178 PVs)")
 
-    print(f"\n✓ predictnew.py complete (ablation: basis-only)")
+    print(f"\n✓ predict_nocov.py complete (ablation: basis-only)")
     print(f"  Output dir: {PRED_DIR}")
