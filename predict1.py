@@ -23,7 +23,7 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent.parent.parent))
+sys.path.append(str(Path(__file__).parent.parent))
 
 from configs.config import (
     STATIONS, BASIS_DIR, BG_DIR, C13_FEAT_DIR,
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     print("\n[2/5] Loading PV inputs...")
 
     Phi_pvs  = np.load(BASIS_DIR / "Phi_pvs_scaled.npy")   # (178, 411)
-    pv_path  = Path(__file__).parent.parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
+    pv_path  = Path(__file__).parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
     pv_df    = pd.read_csv(pv_path)
     pv_names = pv_df['pv_name'].tolist()
     M        = len(pv_names)
@@ -256,15 +256,22 @@ if __name__ == "__main__":
         phi_j  = np.tile(Phi_pvs[j], (T_day, 1))        # (T_day, 411)
         X_j    = np.concatenate([phi_j, cov_j], axis=1)  # (T_day, 426)
 
-        # Ensemble: average the point-estimate prediction across all 4 models.
+        # Ensemble: average predictions from all 4 models
         fold_preds = []
         for k, (model, (sc_mean, sc_std)) in enumerate(zip(models, scalers)):
+            # Scale covariates only (basis cols have mean=0, std=1 → unchanged)
             X_j_sc = (X_j - sc_mean) / sc_std
+            # Fill NaN lag features with 0 (standardised mean).
+            # Training dropped NaN rows; prediction fills them so clip(NaN)≠0.
             X_j_sc = np.nan_to_num(X_j_sc, nan=0.0)
-            q_k = predict_batch(model, X_j_sc)  # (T_day,)
-            fold_preds.append(q_k)
+            resid_k = predict_batch(model, X_j_sc)
+            fold_preds.append(resid_k)
 
         csi_pred_j = np.mean(fold_preds, axis=0)
+        # Single physical ceiling only. Cloud enhancement can briefly push
+        # CSI above 1, but 1.3 is a hard physical bound. No low-sun blend
+        # or tiered cap — those injected a clearsky-shaped morning/evening
+        # dome. GHI falls to zero naturally as clearsky (cs_j) → 0.
         csi_j = np.clip(csi_pred_j, 0.0, 1.3)
 
         ghi_j = csi_j * cs_j

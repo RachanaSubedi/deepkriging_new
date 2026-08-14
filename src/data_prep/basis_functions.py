@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 # Allow running from project root or src/
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from configs.config import (
     LAT_MIN, LAT_MAX, LON_MIN, LON_MAX,
@@ -184,7 +184,7 @@ if __name__ == "__main__":
 
     # ── Load locations ────────────────────────────────────────
     pv_df = pd.read_csv(
-        Path(__file__).parent.parent /
+        Path(__file__).parent.parent.parent /
         "data" / "raw" / "pv_nn_assignments.csv"
     )
     pv_locations = pv_df[['pv_lat', 'pv_lon']].values

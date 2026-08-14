@@ -1,5 +1,5 @@
 """
-gee/extract_c13_c02_pixels.py
+gee/extract_c13_pixels.py
 
 Extracts GOES-18 C13 brightness temperature AND C02 visible/near-IR
 reflectance at all unique GOES pixels covering the domain, using a
@@ -26,10 +26,10 @@ Prerequisites:
     pip install earthengine-api
 
 Run:
-    python gee/extract_c13_c02_pixels.py
+    python gee/extract_c13_pixels.py
 
 Reads:
-    data/processed/goes_pixel_list.csv   (from pixel_mapping.py)
+    data/processed/goes_pixel_list.csv   (from src/data_prep/pixel_mapping.py)
 
 Exports to Google Drive:
     Folder: goes18_c13_c02_pixels/
@@ -37,7 +37,7 @@ Exports to Google Drive:
     Columns: datetime_utc, bt_c13_raw, refl_c02_raw, pixel_id
 
 After GEE exports finish (check Task Manager at code.earthengine.google.com):
-    Download CSVs from Drive → data/raw/goes_c13_c02/extracted_pixels/
+    Download CSVs from Drive → data/raw/goes_c13/extracted_pixels/
 """
 
 import ee
@@ -130,7 +130,7 @@ def export_pixel(pixel_id, lat, lon, task_list):
 if __name__ == "__main__":
 
     print("=" * 60)
-    print("  extract_c13_c02_pixels.py — GOES-18 C13+C02 GEE Extraction")
+    print("  extract_c13_pixels.py — GOES-18 C13+C02 GEE Extraction")
     print("=" * 60)
 
     # ── 1. Authenticate ───────────────────────────────────────
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     pixel_csv = PROCESSED_DIR / "goes_pixel_list.csv"
     if not pixel_csv.exists():
         raise FileNotFoundError(
-            f"Run src/pixel_mapping.py first — {pixel_csv} not found"
+            f"Run src/data_prep/pixel_mapping.py first — {pixel_csv} not found"
         )
     pixels = pd.read_csv(pixel_csv)
     print(f"\nLoaded {len(pixels)} unique GOES pixels to extract")
@@ -172,7 +172,7 @@ NEXT STEPS:
      Download all CSV files
 
   3. Place downloaded CSVs in:
-     data/raw/goes_c13_c02/extracted_pixels/
+     data/raw/goes_c13/extracted_pixels/
      Expected filenames:
        goes18_c13_c02_px_46p6141_n119p2086.csv
        goes18_c13_c02_px_46p6141_n119p1823.csv
@@ -183,7 +183,8 @@ NEXT STEPS:
      cloud-enhancement day) and confirm C02 reflectance rises with
      known cloud cover and is null/near-zero at night.
 
-  5. Run:  python src/c13_features.py
-     (will need a small update to also load/normalize refl_c02_raw
-      — not yet wired in; this script only extracts the raw data)
+  5. Run:  python src/data_prep/c13_features.py
+     (already loads and normalizes refl_c02_raw into c02_norm —
+      no further wiring needed, this step just needs the new CSVs
+      from step 3 in place first)
 """)

@@ -46,7 +46,7 @@ SEED = 42
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from configs.config import (
     TRAIN_DIR, MODEL_DIR, VAL_DIR, BG_DIR, FIG_DIR,
@@ -57,10 +57,10 @@ from configs.config import (
 from src.model import DeepKriging, count_parameters
 
 # ── HYPERPARAMETERS ───────────────────────────────────────────
-HUBER_DELTA      = 0.1
 EARLY_STOP_PAT   = 30
 VAL_FRACTION     = 0.20
 CLEARSKY_MIN     = 10.0
+HUBER_DELTA      = 0.1
 
 STATION_NAMES    = list(STATIONS.keys())
 DEVICE           = torch.device('cpu')
@@ -213,6 +213,7 @@ def plot_loss_curves(val_dir, fig_dir, station_names):
     fig_loss_combined.png — training/validation loss for all 4 folds
     overlaid, with each fold's best epoch marked.
     """
+    fig_dir = fig_dir / "train"
     fig_dir.mkdir(parents=True, exist_ok=True)
 
     # ── Combined: all folds overlaid ─────────────────────────

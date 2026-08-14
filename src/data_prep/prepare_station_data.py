@@ -37,7 +37,7 @@ import numpy as np
 import pandas as pd
 import pvlib
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from configs.config import STATION_DIR, PROCESSED_DIR, LOCAL_TZ, STATIONS
 
 # ── CONFIG ────────────────────────────────────────────────────

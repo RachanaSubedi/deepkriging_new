@@ -40,7 +40,7 @@ import pandas as pd
 import sys
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from configs.config import (
     C13_PIXEL_DIR, C13_FEAT_DIR,

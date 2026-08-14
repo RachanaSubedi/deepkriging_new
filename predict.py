@@ -256,22 +256,20 @@ if __name__ == "__main__":
         phi_j  = np.tile(Phi_pvs[j], (T_day, 1))        # (T_day, 411)
         X_j    = np.concatenate([phi_j, cov_j], axis=1)  # (T_day, 426)
 
-        # Ensemble: average predictions from all 4 models
-        fold_preds = []
+        # Ensemble: average the median (q50) quantile across all 4 models.
+        # Deterministic — matches the validated LOSO metrics. (Stochastic
+        # AR(1) sampling from q10/q90 was tested and reverted: it produced
+        # spatially-independent noise across PVs sharing the same GOES
+        # pixel, which breaks the real S2/S3-style correlation structure
+        # confirmed in station data — see project notes.)
+        fold_q50 = []
         for k, (model, (sc_mean, sc_std)) in enumerate(zip(models, scalers)):
-            # Scale covariates only (basis cols have mean=0, std=1 → unchanged)
             X_j_sc = (X_j - sc_mean) / sc_std
-            # Fill NaN lag features with 0 (standardised mean).
-            # Training dropped NaN rows; prediction fills them so clip(NaN)≠0.
             X_j_sc = np.nan_to_num(X_j_sc, nan=0.0)
-            resid_k = predict_batch(model, X_j_sc)
-            fold_preds.append(resid_k)
+            q_k = predict_batch(model, X_j_sc)  # (T_day, 3)
+            fold_q50.append(q_k[:, 1])  # median only
 
-        csi_pred_j = np.mean(fold_preds, axis=0)
-        # Single physical ceiling only. Cloud enhancement can briefly push
-        # CSI above 1, but 1.3 is a hard physical bound. No low-sun blend
-        # or tiered cap — those injected a clearsky-shaped morning/evening
-        # dome. GHI falls to zero naturally as clearsky (cs_j) → 0.
+        csi_pred_j = np.mean(fold_q50, axis=0)
         csi_j = np.clip(csi_pred_j, 0.0, 1.3)
 
         ghi_j = csi_j * cs_j

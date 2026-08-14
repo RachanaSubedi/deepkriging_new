@@ -19,19 +19,19 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import sys
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from configs.config import FIG_DIR, STATIONS
 
 # ── Which date to plot — change this, nothing else needs editing ──
-TARGET_DATE = "2024-4-22"
+TARGET_DATE = "2024-4-21"
 
 # ── PATHS ─────────────────────────────────────────────────────
 # Real model output (full covariates, quantile-corrected). NOT the
 # _nocov ablation — that lives in a separate predictions_nocov/ dir
 # and should be plotted with a separate script call if ever needed.
-PRED_CSV = Path(__file__).parent.parent / "outputs" / "predictions" / "ghi_pvs.parquet"
-PV_CSV      = Path(__file__).parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
-STATION_CSV = (Path(__file__).parent.parent / "data" / "raw" / "stations"
+PRED_CSV = Path(__file__).parent.parent.parent / "outputs" / "predictions" / "ghi_pvs.parquet"
+PV_CSV      = Path(__file__).parent.parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
+STATION_CSV = (Path(__file__).parent.parent.parent / "data" / "raw" / "stations"
                / "all_stations_GHI_5min_PST.csv")
 
 STATION_COLORS = {'S1': '#e63946', 'S2': '#2a9d8f',

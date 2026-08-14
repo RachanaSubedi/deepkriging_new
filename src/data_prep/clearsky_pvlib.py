@@ -26,7 +26,7 @@ from pathlib import Path
 
 from pvlib.location import Location
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from configs.config import STATIONS, BG_DIR
 
 TZ = 'America/Los_Angeles'
@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
     # ── PVs ───────────────────────────────────────────────────
     print("\n[2/2] Computing PV clear-sky (178 locations)...")
-    pv_df    = pd.read_csv(Path(__file__).parent.parent /
+    pv_df    = pd.read_csv(Path(__file__).parent.parent.parent /
                            "data" / "raw" / "pv_nn_assignments.csv")
     pv_names = pv_df['pv_name'].tolist()
     pv_lat   = pv_df.set_index('pv_name')['pv_lat']

@@ -25,7 +25,7 @@ import pandas as pd
 import sys
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from configs.config import (
     NSRDB_DIR, NSRDB_SKIPROWS, LOCAL_TZ,
@@ -203,7 +203,7 @@ if __name__ == "__main__":
     station_locs  = np.array([[v['lat'], v['lon']]
                                for v in STATIONS.values()])
 
-    pv_path = Path(__file__).parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
+    pv_path = Path(__file__).parent.parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
     pv_df   = pd.read_csv(pv_path)
     pv_locs  = pv_df[['pv_lat', 'pv_lon']].values
     pv_names = pv_df['pv_name'].tolist()

@@ -23,17 +23,17 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import sys
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from configs.config import FIG_DIR, STATIONS, KM_PER_LAT, KM_PER_LON
 
 # ── Which date to plot — change this, nothing else needs editing ──
-TARGET_DATE = "2024-03-23"
+TARGET_DATE = "2024-04-23"
 
 # ── PATHS ─────────────────────────────────────────────────────
-DK_PRED_CSV = Path(__file__).parent.parent / "outputs" / "predictions" / "ghi_pvs_corrected.csv"
-PV_CSV      = Path(__file__).parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
-STATION_CSV = (Path(__file__).parent.parent / "data" / "raw" / "stations"
-               / "all_stations_GHI_30min_PST_filled.csv")
+DK_PRED_CSV = Path(__file__).parent.parent.parent / "outputs" / "predictions" / "ghi_pvs.csv"
+PV_CSV      = Path(__file__).parent.parent.parent / "data" / "raw" / "pv_nn_assignments.csv"
+STATION_CSV = (Path(__file__).parent.parent.parent / "data" / "raw" / "stations"
+               / "all_stations_GHI_5min_PST.csv")
 
 STATION_COLORS = {'S1': '#e63946', 'S2': '#2a9d8f',
                   'S3': '#e76f51', 'P2': '#264653'}
@@ -58,8 +58,7 @@ pv_names = pv_df['pv_name'].tolist()
 print("Loading station measurements...")
 st = pd.read_csv(STATION_CSV, sep=None, engine='python',
                  encoding='utf-8-sig', index_col=0, parse_dates=True)
-st.index = (pd.to_datetime(st.index)
-            .tz_localize('Etc/GMT+8')
+st.index = (pd.to_datetime(st.index, utc=True)
             .tz_convert('America/Los_Angeles')
             .tz_localize(None))
 st.columns = [c.replace('GHI_', '') for c in st.columns]

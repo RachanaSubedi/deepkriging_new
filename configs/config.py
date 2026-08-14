@@ -32,10 +32,10 @@ KM_PER_LON        = 75.8   # at 46.7°N
 
 # ── STATIONS ──────────────────────────────────────────────────
 STATIONS = {
-    'S1': {'lat': 46.59,  'lon': -119.150},
-    'S2': {'lat': 46.82,  'lon': -119.160},
-    'S3': {'lat': 46.82,  'lon': -119.150},
-    'P2': {'lat': 46.78,  'lon': -119.228},
+    'S1': {'lat': 46.594029, 'lon': -119.152367},
+    'S2': {'lat': 46.823242, 'lon': -119.163197},
+    'S3': {'lat': 46.821036, 'lon': -119.150761},
+    'P2': {'lat': 46.780547, 'lon': -119.228783},
 }
 
 # ── NSRDB GRID ────────────────────────────────────────────────
@@ -63,7 +63,7 @@ GEE_PROJECT    = "rachanaieee9500"
 GEE_DATASET    = "NOAA/GOES/18/MCMIPC"
 
 # ── MODEL ─────────────────────────────────────────────────────
-N_COVARIATES   = 18
+N_COVARIATES   = 15   # see src/data_prep/training_matrix.py for the exact list
 HIDDEN_SIZE    = 100
 DROPOUT        = 0.3
 WEIGHT_DECAY   = 1e-4
