@@ -1,0 +1,10 @@
+DK-4 MSE Loss Ground-Truth LOSO Results
+============================================================
+ fold test_station  rmse_csi_raw  r2_csi_raw  rmse_ghi  r2_ghi
+    0           S1        0.2137      0.2177  110.9569  0.7765
+    1           S2        0.1569      0.6103   79.0075  0.8964
+    2           S3        0.1536      0.5977   78.1559  0.8932
+    3           P2        0.1360     -0.0713   34.9646  0.3478
+
+Mean GHI RMSE: 75.7712
+Mean GHI R2: 0.7285

@@ -1,0 +1,13 @@
+file,size_bytes,mtime_utc,sha256,shape,dtype
+data\raw\stations\all_stations_GHI_5min_PST.csv,4736830,2026-08-19T04:43:17.124064+00:00,7b43e7a2f8d95de4523ed4247d382a7a48b0abe935f8b7be6b7baec40f852aa3,,
+data\raw\stations\station_p2_full_year_GHI_zeroshot.csv,17783590,2026-08-20T21:58:22.163056+00:00,c79c0ad02c481eed2e7aa5e98a6c7e3600de91ea0f515826ceeedf08f3866cd3,,
+data\processed\background_field\bg_clearsky_stations.parquet,2202440,2026-07-21T17:10:10.159063+00:00,be834e095392c79b115ae8d3603e16a30f933cbe5a7086c40c4cbaa0817198df,,
+data\processed\residuals\csi_stations.parquet,2187457,2026-08-23T16:18:18.993047+00:00,f5bdb63a9cf86dae42851336d4b54380671a6c3e6ff58a0eb0aa163308661bf1,,
+data\processed\training_matrix\X.npy,355273904,2026-08-23T16:18:32.251932+00:00,f3ac8cc111249373b5e0dd270d06c2d5e2300ac94b412b46964a4165028e2471,"(208494, 426)",float32
+data\processed\training_matrix\y.npy,834104,2026-08-23T16:18:32.251932+00:00,5ee20c6c72a580628e2a7ec0b7bf1ca882feafac3d851923e5b78805c41ebc48,"(208494,)",float32
+data\processed\training_matrix\fold_ids.npy,208622,2026-08-23T16:18:32.251932+00:00,fb44b5a00c4aa505a8cc76608b2fe3e52cdb37ccb5f2f88b464184861fb832e3,"(208494,)",int8
+data\processed\training_matrix\timestamps.npy,1668080,2026-08-23T16:18:32.251932+00:00,47ca52697e19971529bf6c288e663238578bcbd72ef584f6ade47acbb0cdf0b5,"(208494,)",int64
+data\processed\training_matrix\feature_names.txt,3744,2026-08-23T16:18:32.258951+00:00,91d963ecedce78c4ec4086a7e40f976ca1351ec523b7078a57aae50afbf614e4,,
+data\processed\basis_matrix\Phi_stations_scaled.npy,6704,2026-07-21T17:13:16.581319+00:00,50871846b7a03bb3bb6b5999961150452079bf81e9b155db9200b709b8e5f79c,"(4, 411)",float32
+data\processed\basis_matrix\Phi_pvs_scaled.npy,292760,2026-07-21T17:13:16.586318+00:00,afe3377b84d4cc9776bc86f6383ef7481f787392e8aa47792c380f02cc941761,"(178, 411)",float32
+data\processed\basis_matrix\active_mask.npy,539,2026-07-21T17:13:16.580318+00:00,8868010f3337b54335b0b89d0475044091efff3c71e04175741a9ce045e9a55f,"(411,)",bool

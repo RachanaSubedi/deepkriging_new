@@ -1,0 +1,11 @@
+{
+  "p2_provenance_path": "C:\\Users\\C838122727\\Documents\\CSU\\research\\deepkriging\\deepkriging_solar_Copy\\data\\raw\\stations\\station_p2_full_year_GHI_zeroshot.csv",
+  "p2_provenance_sha256": "c79c0ad02c481eed2e7aa5e98a6c7e3600de91ea0f515826ceeedf08f3866cd3",
+  "datetime_column": "datetime",
+  "source_column": "source",
+  "accepted_source": "measured",
+  "p2_rows_in_training_matrix": 52150,
+  "p2_genuine_rows_retained": 4012,
+  "p2_reconstructed_rows_excluded": 48138,
+  "complete_station_policy": "S1/S2/S3 rows retained"
+}

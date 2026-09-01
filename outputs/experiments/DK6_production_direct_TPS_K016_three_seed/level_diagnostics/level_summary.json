@@ -1,0 +1,23 @@
+{
+  "reference_stations": [
+    "S1",
+    "S2",
+    "S3"
+  ],
+  "p2_excluded_from_reference": true,
+  "n_common_timestamps": 105024,
+  "mean_dk6_minus_idw_wm2": -0.5302825472137165,
+  "median_dk6_minus_idw_wm2": -0.09747314453125,
+  "p05_dk6_minus_idw_wm2": -97.23740310668946,
+  "p95_dk6_minus_idw_wm2": 103.68101501464832,
+  "mean_abs_ensemble_minus_seed42_wm2": 6.766214533414289,
+  "mean_fraction_pvs_below_station_min": 0.3035927174756409,
+  "mean_fraction_pvs_above_station_max": 0.30200030897960667,
+  "representative_days": {
+    "largest_low_bias": "2024-01-20",
+    "largest_high_bias": "2024-07-22",
+    "most_variable": "2024-06-03",
+    "clearest": "2024-07-06"
+  },
+  "interpretation_warning": "Station-envelope comparisons are plausibility diagnostics only; PV-site truth is unavailable."
+}

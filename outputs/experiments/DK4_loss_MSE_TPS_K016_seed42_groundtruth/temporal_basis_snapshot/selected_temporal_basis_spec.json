@@ -1,0 +1,78 @@
+{
+  "version": "DK1_temporal_gaussian_v1__coarse_30d",
+  "formula": "exp(-0.5 * ((t_days - anchor_days) / kappa_days)^2)",
+  "combination": "concatenate spatial basis, temporal basis, and covariates",
+  "timezone_for_elapsed_time": "UTC",
+  "origin_utc": "2024-01-01T00:00:00+00:00",
+  "origin_ns": 1704067200000000000,
+  "domain_min_ns": 1704124800000000000,
+  "domain_max_ns": 1735689300000000000,
+  "levels": [
+    {
+      "name": "coarse_30d",
+      "spacing_days": 30.0,
+      "kappa_days": 30.0,
+      "anchor_days": [
+        -30.0,
+        0.0,
+        30.0,
+        60.0,
+        90.0,
+        120.0,
+        150.0,
+        180.0,
+        210.0,
+        240.0,
+        270.0,
+        300.0,
+        330.0,
+        360.0,
+        390.0,
+        420.0
+      ],
+      "n_basis": 16,
+      "feature_names": [
+        "psi_coarse_30d_0000",
+        "psi_coarse_30d_0001",
+        "psi_coarse_30d_0002",
+        "psi_coarse_30d_0003",
+        "psi_coarse_30d_0004",
+        "psi_coarse_30d_0005",
+        "psi_coarse_30d_0006",
+        "psi_coarse_30d_0007",
+        "psi_coarse_30d_0008",
+        "psi_coarse_30d_0009",
+        "psi_coarse_30d_0010",
+        "psi_coarse_30d_0011",
+        "psi_coarse_30d_0012",
+        "psi_coarse_30d_0013",
+        "psi_coarse_30d_0014",
+        "psi_coarse_30d_0015"
+      ]
+    }
+  ],
+  "n_basis": 16,
+  "feature_names": [
+    "psi_coarse_30d_0000",
+    "psi_coarse_30d_0001",
+    "psi_coarse_30d_0002",
+    "psi_coarse_30d_0003",
+    "psi_coarse_30d_0004",
+    "psi_coarse_30d_0005",
+    "psi_coarse_30d_0006",
+    "psi_coarse_30d_0007",
+    "psi_coarse_30d_0008",
+    "psi_coarse_30d_0009",
+    "psi_coarse_30d_0010",
+    "psi_coarse_30d_0011",
+    "psi_coarse_30d_0012",
+    "psi_coarse_30d_0013",
+    "psi_coarse_30d_0014",
+    "psi_coarse_30d_0015"
+  ],
+  "standardize": false,
+  "selected_from_full_artifact": true,
+  "selected_levels": [
+    "coarse_30d"
+  ]
+}

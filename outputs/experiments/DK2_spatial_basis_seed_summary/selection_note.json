@@ -1,0 +1,11 @@
+{
+  "primary_selection_metric": "mean pooled GHI RMSE across S1/S2/S3",
+  "primary_winner": "eigen_TPS_K16",
+  "important_secondary_checks": [
+    "worst complete-station RMSE",
+    "seed-to-seed standard deviation",
+    "P2 genuine-winter RMSE as a secondary check",
+    "178-PV spatial plausibility before final acceptance"
+  ],
+  "warning": "This is a three-seed robustness screen, not uncertainty quantification and not evidence that four stations identify a high-dimensional spatial field."
+}

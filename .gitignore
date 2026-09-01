@@ -21,6 +21,7 @@ __pycache__/
 # Outputs
 outputs/models/
 outputs/predictions/
+outputs/baseline_frozen/*/run_outputs/
 
 # Keep validation results and figures
 !outputs/validation/

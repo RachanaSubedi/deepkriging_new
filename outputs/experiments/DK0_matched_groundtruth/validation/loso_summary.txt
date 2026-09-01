@@ -1,0 +1,10 @@
+DK0 Matched Ground-Truth LOSO Results
+==================================================
+ fold test_station  rmse_csi_raw  r2_csi_raw  rmse_ghi  r2_ghi
+    0           S1        0.2641     -0.1947  160.2804  0.5337
+    1           S2        0.1631      0.5787   81.6702  0.8893
+    2           S3        0.1571      0.5791   81.1345  0.8849
+    3           P2        0.1238      0.1121   31.8509  0.4588
+
+Mean GHI RMSE: 88.7340
+Mean GHI R2: 0.6917

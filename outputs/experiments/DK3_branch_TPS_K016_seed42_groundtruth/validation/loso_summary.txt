@@ -1,0 +1,10 @@
+DK-3 Branch Architecture Ground-Truth LOSO Results
+============================================================
+ fold test_station  rmse_csi_raw  r2_csi_raw  rmse_ghi  r2_ghi
+    0           S1        0.2615     -0.1713  162.1432  0.5228
+    1           S2        0.1635      0.5767   82.1029  0.8881
+    2           S3        0.1635      0.5443   81.7060  0.8833
+    3           P2        0.1119      0.2747   29.4128  0.5384
+
+Mean GHI RMSE: 88.8412
+Mean GHI R2: 0.7081

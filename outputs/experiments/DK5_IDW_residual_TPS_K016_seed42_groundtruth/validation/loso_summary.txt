@@ -1,0 +1,10 @@
+DK-5 Fold-Safe Station-IDW Residual LOSO Results
+============================================================
+ fold test_station  rmse_residual_raw  r2_residual_raw  rmse_ghi  r2_ghi  rmse_ghi_idw_only
+    0           S1             0.1675          -0.0408   94.6818  0.8373            94.4384
+    1           S2             0.1504           0.0207   77.6676  0.8998            76.8776
+    2           S3             0.1635          -0.1584   82.4217  0.8812            76.8509
+    3           P2             0.0831          -0.1470   23.2076  0.7127            21.8720
+
+Mean GHI RMSE: 69.4947
+Mean GHI R2: 0.8327

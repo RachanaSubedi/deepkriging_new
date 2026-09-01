@@ -1,0 +1,29 @@
+M "data/raw/stations/46.78, -119.22 2024.csv"
+ M data/raw/stations/all_stations_GHI_5min_PST.csv
+ M outputs/figures/fig_2024-03-22_spatial.png
+ M outputs/figures/fig_2024-03-22_timeseries.png
+ M outputs/figures/fig_2024-03-27_spatial.png
+ M outputs/figures/fig_2024-03-27_timeseries.png
+ M outputs/figures/fig_2024-4-21_spatial.png
+ M outputs/figures/fig_2024-4-21_timeseries.png
+ M outputs/figures/fig_2024-4-22_spatial.png
+ M outputs/figures/fig_2024-4-22_timeseries.png
+ M outputs/figures/fig_spatial_4panel.png
+ M outputs/figures/train/fig_loss_combined.png
+ M outputs/validation/fold_0_S1_predictions.csv
+ M outputs/validation/fold_0_history.csv
+ M outputs/validation/fold_1_S2_predictions.csv
+ M outputs/validation/fold_1_history.csv
+ M outputs/validation/fold_2_S3_predictions.csv
+ M outputs/validation/fold_2_history.csv
+ M outputs/validation/fold_3_P2_predictions.csv
+ M outputs/validation/fold_3_history.csv
+ M outputs/validation/loso_results.csv
+ M outputs/validation/loso_summary.txt
+AM src/check_model_architecture.py
+ M src/viz/spatial_map.py
+?? "data/raw/stations/46.78, -119.22 2024_old.csv"
+?? data/raw/stations/all_stations_GHI_5min_PST_old.csv
+?? data/raw/stations/station_p2_full_year_GHI_zeroshot.csv
+?? outputs/baseline_frozen/
+?? src/validation/freeze_dk0_baseline.py

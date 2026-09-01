@@ -1,0 +1,25 @@
+{
+  "experiment": "DK1_direct_CSI_spatial_plus_temporal_basis",
+  "timestamps_rows": 208494,
+  "unique_timestamps": 52197,
+  "train_unique_timestamps": 41799,
+  "validation_unique_timestamps": 10398,
+  "temporal_basis_columns": 441,
+  "levels": {
+    "coarse_30d": 16,
+    "medium_7d": 56,
+    "fine_1d": 369
+  },
+  "matrix_shape": [
+    52197,
+    441
+  ],
+  "matrix_size_mib": 87.8100471496582,
+  "validation_support_passed": true,
+  "minimum_train_max_for_validation_active_basis": 0.19785746932029724,
+  "source_files": {
+    "C:\\Users\\C838122727\\Documents\\CSU\\research\\deepkriging\\deepkriging_solar_Copy\\data\\processed\\training_matrix\\timestamps.npy": "47ca52697e19971529bf6c288e663238578bcbd72ef584f6ade47acbb0cdf0b5",
+    "C:\\Users\\C838122727\\Documents\\CSU\\research\\deepkriging\\deepkriging_solar_Copy\\data\\processed\\training_matrix\\shared_blocked_day_split\\shared_train_mask.npy": "5ba5c67c1ec9a4f1ce333f61654d0e6fd3f691de0c5445c886be8117d7b1ff70",
+    "C:\\Users\\C838122727\\Documents\\CSU\\research\\deepkriging\\deepkriging_solar_Copy\\data\\processed\\training_matrix\\shared_blocked_day_split\\shared_val_mask.npy": "f963a7b4fc7764b350e46a6e02de26a06ed753085ad34ea937ef0bc1a776afbe"
+  }
+}

@@ -1,0 +1,10 @@
+DK-1 Spatial + Temporal Basis Ground-Truth LOSO Results
+============================================================
+ fold test_station  rmse_csi_raw  r2_csi_raw  rmse_ghi  r2_ghi
+    0           S1        0.2268      0.1183  133.7291  0.6754
+    1           S2        0.1670      0.5583   82.7269  0.8864
+    2           S3        0.1534      0.5990   78.3556  0.8927
+    3           P2        0.1593     -0.4709   40.0695  0.1434
+
+Mean GHI RMSE: 83.7203
+Mean GHI R2: 0.6495

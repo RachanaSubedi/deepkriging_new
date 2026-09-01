@@ -1,0 +1,5 @@
+fold,test_station,dk5_daytime_rows,direct_daytime_rows,common_daytime_rows,dk5_rows_not_common,direct_rows_not_common
+0,S1,52019,52053,52019,0,34
+1,S2,52142,52142,52142,0,0
+2,S3,52146,52149,52146,0,3
+3,P2,4012,4012,4012,0,0

@@ -1,0 +1,16 @@
+name: deepkriging
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  - scikit-learn
+  - pip
+  - pip:
+    - torch --index-url https://download.pytorch.org/whl/cpu
+    - earthengine-api
+    - geemap

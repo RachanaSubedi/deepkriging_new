@@ -1,0 +1,18 @@
+{
+  "n_timestamps": 105024,
+  "n_pvs": 178,
+  "seeds": [
+    42,
+    123,
+    2026
+  ],
+  "ensemble_rule": "mean_raw_CSI_then_single_common_postprocessing",
+  "daytime_ghi_min": 0.07218202948570251,
+  "daytime_ghi_max": 848.8907470703125,
+  "daytime_ghi_mean": 253.7989044189453,
+  "per_pv_mean_ghi_min": 227.21731567382812,
+  "per_pv_mean_ghi_max": 262.7585144042969,
+  "mean_raw_seed_std": 0.022941110655665398,
+  "p95_raw_seed_std": 0.06062913313508034,
+  "total_missing_standardized_values_imputed_to_zero": 0
+}
